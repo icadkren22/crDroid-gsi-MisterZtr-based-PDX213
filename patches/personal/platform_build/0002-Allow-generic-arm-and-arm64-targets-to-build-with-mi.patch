@@ -1,0 +1,35 @@
+From dee537f0ae7a6c1437a0472b19274fdb9c56a7f6 Mon Sep 17 00:00:00 2001
+From: Evelyn Torres <lostentrepreneur439@yahoo.com>
+Date: Tue, 23 Jun 2026 03:15:43 -0230
+Subject: [PATCH 2/2] Allow generic arm and arm64 targets to build with missing
+ required modules
+
+Breaks face unlock, but I don't believe this would work in a GSI anyways.
+---
+ target/board/generic/BoardConfig.mk       | 1 +
+ target/board/generic_arm64/BoardConfig.mk | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/target/board/generic/BoardConfig.mk b/target/board/generic/BoardConfig.mk
+index 35cbb14..e4a1780 100644
+--- a/target/board/generic/BoardConfig.mk
++++ b/target/board/generic/BoardConfig.mk
+@@ -29,5 +29,6 @@ TARGET_CPU_VARIANT := generic
+ TARGET_CPU_ABI := armeabi-v7a
+ TARGET_CPU_ABI2 := armeabi
+ BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
++BUILD_BROKEN_MISSING_REQUIRED_MODULES := true
+ 
+ include build/make/target/board/BoardConfigGsiCommon.mk
+diff --git a/target/board/generic_arm64/BoardConfig.mk b/target/board/generic_arm64/BoardConfig.mk
+index 407f5fc..aa25932 100644
+--- a/target/board/generic_arm64/BoardConfig.mk
++++ b/target/board/generic_arm64/BoardConfig.mk
+@@ -67,3 +67,4 @@ include build/make/target/board/BoardConfigGsiCommon.mk
+ BOARD_SEPOLICY_DIRS += build/make/target/board/generic_arm64/sepolicy
+ 
+ BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
++BUILD_BROKEN_MISSING_REQUIRED_MODULES := true
+-- 
+2.53.0
+

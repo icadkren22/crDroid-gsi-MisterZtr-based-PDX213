@@ -1,0 +1,27 @@
+From 0ffc74b72f1ffa02d3baef1e0a6c73294b7b4401 Mon Sep 17 00:00:00 2001
+From: Subhajeet Muhuri <subhajeet.muhuri@gmail.com>
+Date: Tue, 13 Sep 2022 16:55:10 +0530
+Subject: [PATCH 6/6] TrafficStats: Stop the spam
+
+Change-Id: I812bc7c3af0ea75db3a6c980f6f9ce4ec5ab6671
+Signed-off-by: Dmitrii <bankersenator@gmail.com>
+---
+ framework-t/src/android/net/TrafficStats.java | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/framework-t/src/android/net/TrafficStats.java b/framework-t/src/android/net/TrafficStats.java
+index 973776e..9929eb9 100644
+--- a/framework-t/src/android/net/TrafficStats.java
++++ b/framework-t/src/android/net/TrafficStats.java
+@@ -417,7 +417,7 @@ public class TrafficStats {
+     private static class SocketTagger extends dalvik.system.SocketTagger {
+ 
+         // Enable log with `setprop log.tag.TrafficStats DEBUG` and restart the module.
+-        private static final boolean LOGD = Log.isLoggable(TAG, Log.DEBUG);
++        private static final boolean LOGD = false;
+ 
+         SocketTagger() {
+         }
+-- 
+2.53.0
+

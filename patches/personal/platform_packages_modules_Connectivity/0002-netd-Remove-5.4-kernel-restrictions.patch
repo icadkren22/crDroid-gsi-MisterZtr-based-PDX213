@@ -1,0 +1,35 @@
+From e943629b776fc5d26a7793de7d3c67824071643e Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@gmail.com>
+Date: Fri, 15 Mar 2024 14:59:21 +0200
+Subject: [PATCH 2/6] netd: Remove <5.4 kernel restrictions
+
+Change-Id: I4d4abbacd6b9589260de06663e2143bc37d8ea0f
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ bpf/netd/BpfHandler.cpp | 10 ----------
+ 1 file changed, 10 deletions(-)
+
+diff --git a/bpf/netd/BpfHandler.cpp b/bpf/netd/BpfHandler.cpp
+index 36968c2..9097f64 100644
+--- a/bpf/netd/BpfHandler.cpp
++++ b/bpf/netd/BpfHandler.cpp
+@@ -86,16 +86,6 @@ static Status initPrograms(const char* cg2_path) {
+         return Status("U+ platform with cg2_path != /sys/fs/cgroup is unsupported");
+     }
+ 
+-    // V bumps the kernel requirement up to 4.19
+-    if (isAtLeastV && !isAtLeastKernelVersion(4, 19)) {
+-        return Status("V+ platform with kernel version < 4.19.0 is unsupported");
+-    }
+-
+-    // 25Q2 bumps the kernel requirement up to 5.4
+-    if (isAtLeast25Q2 && !isAtLeastKernelVersion(5, 4)) {
+-        return Status("25Q2+ platform with kernel version < 5.4.0 is unsupported");
+-    }
+-
+     unique_fd cg_fd(open(cg2_path, O_DIRECTORY | O_RDONLY | O_CLOEXEC));
+     if (!cg_fd.ok()) return statusFromErrno(errno, "Opening cgroup dir failed");
+ 
+-- 
+2.53.0
+

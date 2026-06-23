@@ -1,0 +1,252 @@
+From 0a4d0a71672f18f3fc3ab493d7ad56cfc7c57062 Mon Sep 17 00:00:00 2001
+From: Pierre-Hugues Husson <phh@phh.me>
+Date: Wed, 14 Dec 2022 17:21:00 -0500
+Subject: [PATCH 24/47] Call Samsung's ISehSysInputDev to report screen state
+ to touchscreen driver
+
+This fixes touchscreen not waking up on Galaxy F23
+
+Change-Id: If2d74b97a51b19c730a6f9a1b1f4293d1469a9f8
+---
+ p.patch                                       | 135 ++++++++++++------
+ services/core/Android.bp                      |   1 +
+ .../server/display/LocalDisplayAdapter.java   |  31 ++++
+ 3 files changed, 126 insertions(+), 41 deletions(-)
+
+diff --git a/p.patch b/p.patch
+index 3321dbde9..0801d4191 100644
+--- a/p.patch
++++ b/p.patch
+@@ -1,49 +1,102 @@
+-From 029c63575ff808f36a9729168cb4515e6373bf3e Mon Sep 17 00:00:00 2001
++From 1c76699347fd5f11936d0e4132df6e8ec6ea3335 Mon Sep 17 00:00:00 2001
+ From: Pierre-Hugues Husson <phh@phh.me>
+-Date: Sat, 20 Mar 2021 14:31:01 +0100
+-Subject: [PATCH 20/55] Automatically detect pick up sensor, so that an overlay
+- is required for the sole purpose of enabling pulse doze on pick up sensor
++Date: Wed, 14 Dec 2022 17:21:00 -0500
++Subject: [PATCH 29/55] Call Samsung's ISehSysInputDev to report screen state
++ to touchscreen driver
+ 
++This fixes touchscreen not waking up on Galaxy F23
++
++Change-Id: If2d74b97a51b19c730a6f9a1b1f4293d1469a9f8
+ ---
+- .../display/AmbientDisplayConfiguration.java  | 19 +++++++++++++++++--
+- 1 file changed, 17 insertions(+), 2 deletions(-)
+-
+-diff --git a/core/java/android/hardware/display/AmbientDisplayConfiguration.java b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+-index 063f5545dd71..79e72f48f7f2 100644
+---- a/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+-+++ b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+-@@ -28,6 +28,9 @@ import android.text.TextUtils;
+- import android.util.ArrayMap;
++ services/core/Android.bp                      |  1 +
++ .../server/display/LocalDisplayAdapter.java   | 31 +++++++++++++++++++
++ 2 files changed, 32 insertions(+)
++
++diff --git a/services/core/Android.bp b/services/core/Android.bp
++index f154cc078..87f761db5 100644
++--- a/services/core/Android.bp
+++++ b/services/core/Android.bp
++@@ -259,6 +259,7 @@ java_library_static {
++         "android.adpf.sessionmanager_aidl-java",
++         "uprobestats_flags_java_lib",
++         "clipboard_flags_lib",
+++        "vendor.samsung.hardware.sysinput-V1.2-java", // HIDL
++         "aconfig_adbdauth_flags_java_lib",
++         "AvfBuildFlags",
++     ],
++diff --git a/services/core/java/com/android/server/display/LocalDisplayAdapter.java b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
++index 3da7874f6..6865a23a7 100644
++--- a/services/core/java/com/android/server/display/LocalDisplayAdapter.java
+++++ b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
++@@ -38,6 +38,7 @@ import android.os.SystemClock;
++ import android.os.SystemProperties;
++ import android.os.Trace;
++ import android.util.DisplayUtils;
+++import android.util.Log;
++ import android.util.LongSparseArray;
++ import android.util.Slog;
+  import android.util.SparseArray;
++@@ -63,6 +64,8 @@ import com.android.server.display.notifications.DisplayNotificationManager;
++ import com.android.server.lights.LightsManager;
++ import com.android.server.lights.LogicalLight;
++
+++import vendor.samsung.hardware.sysinput.V1_1.ISehSysInputDev;
+++
++ import java.io.PrintWriter;
++ import java.util.ArrayList;
++ import java.util.Arrays;
++@@ -257,6 +260,8 @@ final class LocalDisplayAdapter extends DisplayAdapter {
++
++         private DisplayEventReceiver.FrameRateOverride[] mFrameRateOverrides =
++                 new DisplayEventReceiver.FrameRateOverride[0];
+++        private boolean triedSamsungHal = false;
+++        private ISehSysInputDev samsungSysinput = null;
+ 
+-+import android.hardware.SensorManager;
+-+import android.hardware.Sensor;
++         LocalDisplayDevice(IBinder displayToken, long physicalDisplayId,
++                 SurfaceControl.StaticDisplayInfo staticDisplayInfo,
++@@ -960,10 +965,26 @@ final class LocalDisplayAdapter extends DisplayAdapter {
++                             }
++                         }
++
+++                        if (!triedSamsungHal) {
+++                            triedSamsungHal = true;
+++                            try {
+++                                samsungSysinput = ISehSysInputDev.getService();
+++                            } catch(Throwable t) {}
+++                        }
++                         final int mode = getPowerModeForState(state);
++                         Trace.traceBegin(Trace.TRACE_TAG_POWER, "setDisplayState("
++                                 + "id=" + physicalDisplayId
++                                 + ", state=" + Display.stateToString(state) + ")");
+++
+++                        if (samsungSysinput != null) {
+++                            try {
+++                                Log.d("PHH", "setTspEnable 1, " + state + ", true");
+++                                samsungSysinput.setTspEnable(1, state, true);
+++                            } catch(Throwable t) {
+++                                Log.d("PHH", "Failed settings tsp enable", t);
+++                            }
+++                        }
+++
++                         try {
++                             final long start = SystemClock.uptimeMillis();
++                             mSurfaceControlProxy.setDisplayPowerMode(token, mode);
++@@ -973,6 +994,16 @@ final class LocalDisplayAdapter extends DisplayAdapter {
++                         } finally {
++                             Trace.traceEnd(Trace.TRACE_TAG_POWER);
++                         }
+ +
+- import com.android.internal.R;
+- import com.android.internal.util.ArrayUtils;
+-
+-@@ -111,8 +114,20 @@ public class AmbientDisplayConfiguration {
+-
+-     /** @hide */
+-     public boolean dozePickupSensorAvailable() {
+--        return mContext.getResources().getBoolean(R.bool.config_dozePulsePickup);
+--    }
+-+        SensorManager sm = mContext.getSystemService(SensorManager.class);
+-+        boolean found = false;
+-+        if(sm == null) {
+-+            android.util.Log.d("PHH", "Failed getting sensor manager, can't detect pickup sensor");
+-+        } else {
+-+            java.util.List<Sensor> sensors = sm.getSensorList(Sensor.TYPE_ALL);
+-+            for(Sensor s : sensors) {
+-+                if(Sensor.STRING_TYPE_PICK_UP_GESTURE.equals(s.getStringType())) {
+-+                    found = true;
+-+                    break;
+-+                }
+-+            }
+-+        }
+-+        return mContext.getResources().getBoolean(R.bool.config_dozePulsePickup) || found;    }
+-
+-     /** @hide */
+-     public boolean tapGestureEnabled(int user) {
+++                        if (samsungSysinput != null) {
+++                            try {
+++                                Log.d("PHH", "setTspEnable 1, " + state + ", false");
+++                                samsungSysinput.setTspEnable(1, state, false);
+++                            } catch(Throwable t) {
+++                                Log.d("PHH", "Failed settings tsp enable", t);
+++                            }
+++                        }
+++
++                         setCommittedState(state);
++
++                         // If we're entering a suspended (but not OFF) power state and we
+ -- 
+ 2.52.0
+diff --git a/services/core/Android.bp b/services/core/Android.bp
+index 81fc233d3..b6f1de0a0 100644
+--- a/services/core/Android.bp
++++ b/services/core/Android.bp
+@@ -251,6 +251,7 @@ java_library_static {
+         "android.adpf.sessionmanager_aidl-java",
+         "uprobestats_flags_java_lib",
+         "clipboard_flags_lib",
++        "vendor.samsung.hardware.sysinput-V1.2-java", // HIDL
+         "aconfig_adbdauth_flags_java_lib",
+         "AvfBuildFlags",
+         "vendor.aospa.biometrics.face",
+diff --git a/services/core/java/com/android/server/display/LocalDisplayAdapter.java b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
+index 3da7874f6..6865a23a7 100644
+--- a/services/core/java/com/android/server/display/LocalDisplayAdapter.java
++++ b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
+@@ -38,6 +38,7 @@ import android.os.SystemClock;
+ import android.os.SystemProperties;
+ import android.os.Trace;
+ import android.util.DisplayUtils;
++import android.util.Log;
+ import android.util.LongSparseArray;
+ import android.util.Slog;
+ import android.util.SparseArray;
+@@ -63,6 +64,8 @@ import com.android.server.display.notifications.DisplayNotificationManager;
+ import com.android.server.lights.LightsManager;
+ import com.android.server.lights.LogicalLight;
+ 
++import vendor.samsung.hardware.sysinput.V1_1.ISehSysInputDev;
++
+ import java.io.PrintWriter;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -257,6 +260,8 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+ 
+         private DisplayEventReceiver.FrameRateOverride[] mFrameRateOverrides =
+                 new DisplayEventReceiver.FrameRateOverride[0];
++        private boolean triedSamsungHal = false;
++        private ISehSysInputDev samsungSysinput = null;
+ 
+         LocalDisplayDevice(IBinder displayToken, long physicalDisplayId,
+                 SurfaceControl.StaticDisplayInfo staticDisplayInfo,
+@@ -960,10 +965,26 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+                             }
+                         }
+ 
++                        if (!triedSamsungHal) {
++                            triedSamsungHal = true;
++                            try {
++                                samsungSysinput = ISehSysInputDev.getService();
++                            } catch(Throwable t) {}
++                        }
+                         final int mode = getPowerModeForState(state);
+                         Trace.traceBegin(Trace.TRACE_TAG_POWER, "setDisplayState("
+                                 + "id=" + physicalDisplayId
+                                 + ", state=" + Display.stateToString(state) + ")");
++
++                        if (samsungSysinput != null) {
++                            try {
++                                Log.d("PHH", "setTspEnable 1, " + state + ", true");
++                                samsungSysinput.setTspEnable(1, state, true);
++                            } catch(Throwable t) {
++                                Log.d("PHH", "Failed settings tsp enable", t);
++                            }
++                        }
++
+                         try {
+                             final long start = SystemClock.uptimeMillis();
+                             mSurfaceControlProxy.setDisplayPowerMode(token, mode);
+@@ -973,6 +994,16 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+                         } finally {
+                             Trace.traceEnd(Trace.TRACE_TAG_POWER);
+                         }
++
++                        if (samsungSysinput != null) {
++                            try {
++                                Log.d("PHH", "setTspEnable 1, " + state + ", false");
++                                samsungSysinput.setTspEnable(1, state, false);
++                            } catch(Throwable t) {
++                                Log.d("PHH", "Failed settings tsp enable", t);
++                            }
++                        }
++
+                         setCommittedState(state);
+ 
+                         // If we're entering a suspended (but not OFF) power state and we
+-- 
+2.53.0
+

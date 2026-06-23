@@ -1,0 +1,23 @@
+From 945c01b1e896b83574d0440624aeb53654a60ed0 Mon Sep 17 00:00:00 2001
+From: Evelyn Torres <lostentrepreneur439@yahoo.com>
+Date: Tue, 23 Jun 2026 03:14:33 -0230
+Subject: [PATCH 1/2] Allow the generic target to copy any ELF files
+
+---
+ target/board/generic/BoardConfig.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/target/board/generic/BoardConfig.mk b/target/board/generic/BoardConfig.mk
+index 6720ddb..35cbb14 100644
+--- a/target/board/generic/BoardConfig.mk
++++ b/target/board/generic/BoardConfig.mk
+@@ -28,5 +28,6 @@ TARGET_ARCH_VARIANT := armv7-a-neon
+ TARGET_CPU_VARIANT := generic
+ TARGET_CPU_ABI := armeabi-v7a
+ TARGET_CPU_ABI2 := armeabi
++BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
+ 
+ include build/make/target/board/BoardConfigGsiCommon.mk
+-- 
+2.53.0
+

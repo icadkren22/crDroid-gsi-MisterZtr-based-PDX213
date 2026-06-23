@@ -1,0 +1,230 @@
+From ff66fb5eb796ec12675d7ca599eddbd7e33ba16d Mon Sep 17 00:00:00 2001
+From: Paul Keith <javelinanddart@gmail.com>
+Date: Tue, 30 Oct 2018 15:46:18 +0100
+Subject: [PATCH 1/2] Messaging: Add "Mark as read" quick action for message
+ notifications
+
+Change-Id: I7194dca022e5062926fa35709de282721ca64320
+---
+ res/drawable/ic_wear_read.xml                      |  9 +++++++++
+ res/values-zh-rCN/cm_strings.xml                   |  1 +
+ res/values/cm_strings.xml                          |  3 +++
+ .../messaging/datamodel/BugleNotifications.java    | 14 ++++++++++++++
+ .../datamodel/MessageNotificationState.java        |  8 ++++++++
+ .../messaging/datamodel/NotificationState.java     | 12 +++++++++++-
+ .../messaging/receiver/NotificationReceiver.java   | 10 ++++++++++
+ src/com/android/messaging/ui/UIIntents.java        | 11 +++++++++++
+ src/com/android/messaging/ui/UIIntentsImpl.java    | 14 ++++++++++++++
+ 9 files changed, 81 insertions(+), 1 deletion(-)
+ create mode 100644 res/drawable/ic_wear_read.xml
+
+diff --git a/res/drawable/ic_wear_read.xml b/res/drawable/ic_wear_read.xml
+new file mode 100644
+index 0000000..9d017e6
+--- /dev/null
++++ b/res/drawable/ic_wear_read.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:height="24dp"
++    android:width="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#ffffff"
++        android:pathData="M0.41,13.41L6,19L7.41,17.58L1.83,12M22.24,5.58L11.66,16.17L7.5,12L6.07,13.41L11.66,19L23.66,7M18,7L16.59,5.58L10.24,11.93L11.66,13.34L18,7Z" />
++</vector>
+diff --git a/res/values-zh-rCN/cm_strings.xml b/res/values-zh-rCN/cm_strings.xml
+index 0f7231b..328d150 100644
+--- a/res/values-zh-rCN/cm_strings.xml
++++ b/res/values-zh-rCN/cm_strings.xml
+@@ -19,4 +19,5 @@
+     <string name="swipe_to_delete_conversation_pref_summary">向右滑动以删除会话</string>
+     <string name="notification_channel_messages_title">短信</string>
+     <string name="start_chat">开始聊天</string>
++    <string name="notification_mark_as_read">标记为已读</string>
+ </resources>
+diff --git a/res/values/cm_strings.xml b/res/values/cm_strings.xml
+index e2c26e5..1e29d84 100644
+--- a/res/values/cm_strings.xml
++++ b/res/values/cm_strings.xml
+@@ -24,4 +24,7 @@
+ 
+     <!-- Start new chat button on the main screen -->
+     <string name="start_chat">Start chat</string>
++
++    <!-- Mark message as read -->
++    <string name="notification_mark_as_read">Mark as read</string>
+ </resources>
+diff --git a/src/com/android/messaging/datamodel/BugleNotifications.java b/src/com/android/messaging/datamodel/BugleNotifications.java
+index 76b530d..37030d7 100644
+--- a/src/com/android/messaging/datamodel/BugleNotifications.java
++++ b/src/com/android/messaging/datamodel/BugleNotifications.java
+@@ -738,6 +738,7 @@ public class BugleNotifications {
+ 
+             addDownloadMmsAction(notifBuilder, wearableExtender, notificationState);
+             addWearableVoiceReplyAction(notifBuilder, wearableExtender, notificationState);
++            addReadAction(notifBuilder, wearableExtender, notificationState);
+         }
+ 
+         // Apply the wearable options and build & post the notification
+@@ -807,6 +808,19 @@ public class BugleNotifications {
+         wearableExtender.addAction(wearActionBuilder.build());
+     }
+ 
++    private static void addReadAction(final NotificationCompat.Builder notifBuilder,
++            final WearableExtender wearableExtender, final NotificationState notificationState) {
++        final Context context = Factory.get().getApplicationContext();
++        final PendingIntent readPendingIntent = notificationState.getReadIntent();
++        final NotificationCompat.Action.Builder readActionBuilder =
++                new NotificationCompat.Action.Builder(R.drawable.ic_wear_read,
++                        context.getString(R.string.notification_mark_as_read), readPendingIntent);
++        notifBuilder.addAction(readActionBuilder.build());
++
++        // Support the action on a wearable device as well
++        wearableExtender.addAction(readActionBuilder.build());
++    }
++
+     private static void addDownloadMmsAction(final NotificationCompat.Builder notifBuilder,
+             final WearableExtender wearableExtender, final NotificationState notificationState) {
+         if (!(notificationState instanceof MultiMessageNotificationState)) {
+diff --git a/src/com/android/messaging/datamodel/MessageNotificationState.java b/src/com/android/messaging/datamodel/MessageNotificationState.java
+index cece072..e96f605 100644
+--- a/src/com/android/messaging/datamodel/MessageNotificationState.java
++++ b/src/com/android/messaging/datamodel/MessageNotificationState.java
+@@ -327,6 +327,14 @@ public abstract class MessageNotificationState extends NotificationState {
+                     getClearIntentRequestCode());
+     }
+ 
++    @Override
++    public PendingIntent getReadIntent() {
++        return UIIntents.get().getPendingIntentForMarkingAsRead(
++                    Factory.get().getApplicationContext(),
++                    mConversationIds,
++                    getReadIntentRequestCode());
++    }
++
+     /**
+      * Notification for multiple messages in at least 2 different conversations.
+      */
+diff --git a/src/com/android/messaging/datamodel/NotificationState.java b/src/com/android/messaging/datamodel/NotificationState.java
+index 50a2b37..8a109a8 100644
+--- a/src/com/android/messaging/datamodel/NotificationState.java
++++ b/src/com/android/messaging/datamodel/NotificationState.java
+@@ -44,7 +44,8 @@ import java.util.HashSet;
+ public abstract class NotificationState {
+     private static final int CONTENT_INTENT_REQUEST_CODE_OFFSET = 0;
+     private static final int CLEAR_INTENT_REQUEST_CODE_OFFSET = 1;
+-    private static final int NUM_REQUEST_CODES_NEEDED = 2;
++    private static final int READ_INTENT_REQUEST_CODE_OFFSET = 2;
++    private static final int NUM_REQUEST_CODES_NEEDED = 3;
+ 
+     public interface FailedMessageQuery {
+         String FAILED_MESSAGES_WHERE_CLAUSE =
+@@ -79,6 +80,11 @@ public abstract class NotificationState {
+      */
+     public abstract PendingIntent getClearIntent();
+ 
++    /**
++     * The intent to be triggered when mark as read is pressed.
++     */
++    public abstract PendingIntent getReadIntent();
++
+     protected Uri getAttachmentUri() {
+         return null;
+     }
+@@ -106,6 +112,10 @@ public abstract class NotificationState {
+         return mBaseRequestCode + CLEAR_INTENT_REQUEST_CODE_OFFSET;
+     }
+ 
++    public int getReadIntentRequestCode() {
++        return mBaseRequestCode + READ_INTENT_REQUEST_CODE_OFFSET;
++    }
++
+     /**
+      * Gets the appropriate icon needed for notifications.
+      */
+diff --git a/src/com/android/messaging/receiver/NotificationReceiver.java b/src/com/android/messaging/receiver/NotificationReceiver.java
+index 52866b2..141c0ea 100644
+--- a/src/com/android/messaging/receiver/NotificationReceiver.java
++++ b/src/com/android/messaging/receiver/NotificationReceiver.java
+@@ -21,6 +21,7 @@ import android.content.Context;
+ import android.content.Intent;
+ 
+ import com.android.messaging.datamodel.BugleNotifications;
++import com.android.messaging.datamodel.action.MarkAsReadAction;
+ import com.android.messaging.datamodel.action.MarkAsSeenAction;
+ import com.android.messaging.ui.UIIntents;
+ import com.android.messaging.util.ConversationIdSet;
+@@ -50,6 +51,15 @@ public class NotificationReceiver extends BroadcastReceiver {
+                     BugleNotifications.resetLastMessageDing(conversationId);
+                 }
+             }
++        } else if (intent.getAction().equals(UIIntents.ACTION_MARK_AS_READ)) {
++            final String conversationIdSetString =
++                    intent.getStringExtra(UIIntents.UI_INTENT_EXTRA_CONVERSATION_ID_SET);
++            if (conversationIdSetString != null) {
++                for (final String conversationId :
++                        ConversationIdSet.createSet(conversationIdSetString)) {
++                        MarkAsReadAction.markAsRead(conversationId);
++                }
++            }
+         }
+     }
+ }
+diff --git a/src/com/android/messaging/ui/UIIntents.java b/src/com/android/messaging/ui/UIIntents.java
+index b8a08fd..f8fe097 100644
+--- a/src/com/android/messaging/ui/UIIntents.java
++++ b/src/com/android/messaging/ui/UIIntents.java
+@@ -71,6 +71,9 @@ public abstract class UIIntents {
+     public static final String ACTION_RESET_NOTIFICATIONS =
+             "com.android.messaging.reset_notifications";
+ 
++    public static final String ACTION_MARK_AS_READ =
++            "com.android.messaging.mark_as_read";
++
+     // Sending VCard uri to VCard detail activity
+     public static final String UI_INTENT_EXTRA_VCARD_URI = "vcard_uri";
+ 
+@@ -295,6 +298,14 @@ public abstract class UIIntents {
+             final int updateTargets, final ConversationIdSet conversationIdSet,
+             final int requestCode);
+ 
++    /**
++     * Get a PendingIntent for marking a conversation as read.
++     *
++     * <p>This is intended to be used by notifications.
++     */
++    public abstract PendingIntent getPendingIntentForMarkingAsRead(final Context context,
++            final ConversationIdSet conversationIdSet, final int requestCode);
++
+     /**
+      * Get a PendingIntent for showing a new message to a secondary user.
+      */
+diff --git a/src/com/android/messaging/ui/UIIntentsImpl.java b/src/com/android/messaging/ui/UIIntentsImpl.java
+index bfa0c70..fff2836 100644
+--- a/src/com/android/messaging/ui/UIIntentsImpl.java
++++ b/src/com/android/messaging/ui/UIIntentsImpl.java
+@@ -380,6 +380,20 @@ public class UIIntentsImpl extends UIIntents {
+                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+     }
+ 
++    @Override
++    public PendingIntent getPendingIntentForMarkingAsRead(final Context context,
++            final ConversationIdSet conversationIdSet, final int requestCode) {
++        final Intent intent = new Intent(context, NotificationReceiver.class);
++        intent.setAction(ACTION_MARK_AS_READ);
++        if (conversationIdSet != null) {
++            intent.putExtra(UI_INTENT_EXTRA_CONVERSATION_ID_SET,
++                    conversationIdSet.getDelimitedString());
++        }
++        return PendingIntent.getBroadcast(context,
++                requestCode, intent,
++                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
++    }
++
+     /**
+      * Gets a PendingIntent associated with an Intent to start an Activity. All notifications
+      * that starts an Activity must use this method to get a PendingIntent, which achieves two
+-- 
+2.53.0
+

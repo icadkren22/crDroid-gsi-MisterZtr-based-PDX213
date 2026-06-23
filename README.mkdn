@@ -40,6 +40,11 @@ cd ~/crDroid
 repo init -u https://github.com/crdroidandroid/android.git -b 16.0 --git-lfs --no-clone-bundle
 ```
 
+Add the needed manifest for a GSI
+```bash
+git clone https://github.com/Lost-Entrepreneur439/treble_manifest.git .repo/local_manifests -b lineage-23.2
+```
+
 Sync the source tree (may take a long time on first run):
 ```bash
 repo sync
@@ -54,16 +59,30 @@ Notes and useful flags:
 
 ## 2. Building
 
+Apply the required patches for a GSI:
+```bash
+bash crDroid-gsi-MisterZtr-based/patches/apply-patches.sh .
+```
+
 Prepare the build environment:
 ```bash
 . build/envsetup.sh
 ```
 
-Build using:
+Select your device:
+
+For ARM64 Vanilla with ext4:
 ```bash
-brunch <devicecodename>
+breakfast arm64_bvN4
 ```
-(Replace `<devicecodename>` with your device codename, e.g. `caiman`, `lemonadep`, etc.)
+Or for A64 (ARM32/Binder64) Vanilla with ext4 (requires https://github.com/Lost-Entrepreneur439/LineageOS-a64_gsi/blob/lineage-23.2/patches/personal/device_phh_treble/0011-Convert-arm64-support-to-a64.patch)
+```bash
+breakfast a64_bvN4
+```
+
+Then to start a build:
+```bash
+m systemimage -j$(nproc --all)
 
 Troubleshooting tips:
 - Out-of-disk-space: ensure enough free space (Android tree can require 100+ GB).
@@ -81,10 +100,7 @@ To submit changes or patches:
 
 ## 4. How to become an Official Maintainer
 
-1. Read and follow our rules and guidelines:
-   https://github.com/crdroidandroid/rules-and-guidelines
-2. If everything is in order, message Gabriel on Telegram:
-   https://telegram.me/gwolf2u
+This doesn't apply, GSIs will never be official!
 
 ---
 
