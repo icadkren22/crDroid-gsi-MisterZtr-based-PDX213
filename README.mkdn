@@ -83,6 +83,7 @@ breakfast a64_bvN4
 Then to start a build:
 ```bash
 m systemimage -j$(nproc --all)
+```
 
 Troubleshooting tips:
 - Out-of-disk-space: ensure enough free space (Android tree can require 100+ GB).
