@@ -98,9 +98,26 @@ To submit changes or patches:
 
 ---
 
-## 4. How to become an Official Maintainer
+## 4. Personal Patches & Fixes (Xperia 10 III / PDX213 & Generic GSI)
 
-This doesn't apply, GSIs will never be official!
+This fork includes dedicated patches in `patches/personal/` addressing critical GSI issues:
+
+### 4.1 Biometrics & Keystore (Face Unlock for Banking & Bitwarden)
+* **Class 3 (`STRENGTH_STRONG`) Face Unlock:** Promoted `SenseProvider` and HIDL face sensor strength from `STRENGTH_WEAK` (Class 2) to `STRENGTH_STRONG` (Class 3), enabling biometric prompt support for password managers (Bitwarden) and banking apps.
+* **Token Serialization Fix:** Replaced lossy UTF-8 String conversions with Base64 encoding in `PreferenceHelper.kt` to prevent 69-byte binary `HardwareAuthToken` corruption.
+* **Crypto Challenge Binding:** Preserves `mOperationId` in `SenseService.kt` and injects it into the authentication token so Keystore2 verifies cryptographic `CryptoObject` operations properly.
+* **Keystore2 TrustZone Software Enforcement:** Configures Qualcomm KeyMint to generate hardware-accelerated keys with `Tag::NO_AUTH_REQUIRED` while Keystore2 handles software biometric authorization, resolving `KEY_USER_NOT_AUTHENTICATED` errors on software face unlock.
+* **Biometric SID Verification:** Fixed `KeyStoreCryptoOperationUtils.java` so `Cipher.init()` allows authorization when any registered sensor matches, preventing `KeyPermanentlyInvalidatedException` / `Crypto primitive not initialized` crashes.
+
+### 4.2 microG Suite & Play Store
+* Bundled with clean FOSS microG (`GmsCore`, `GsfProxy`, `FakeStore`, `FDroid`, `FDroidPrivilegedExtension`).
+* **Optional Google Play Store:** Set `export WITH_CUSTOM_PLAYSTORE=true` and place `PlayStore.apk` into `vendor/microg/FakeStore/` to bundle your own modified Play Store package. Defaults to FOSS `FakeStore.apk`.
+
+### 4.3 Networking, Performance & System UI
+* **Hotspot Tethering DNS:** Configured Tethering to automatically advertise `1.1.1.1`, `1.0.0.1`, and `8.8.8.8` upstream DNS servers with legacy DNS proxy fallback.
+* **5G NR Network Settings:** Added 5G Preferred Network Type and NR repository support in Settings UI.
+* **SurfaceFlinger Blur Toggle:** Reads `persist.sys.phh.sf.background_blur` to enable/disable blurs dynamically.
+* **AnimationUtils:** Fixed custom activity transition animation initialization crashes.
 
 ---
 
