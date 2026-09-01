@@ -1,0 +1,40 @@
+From 7c3391f89d6760236e639ba90424bf1cf9f3c916 Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Tue, 1 Sep 2026 10:12:29 +0000
+Subject: [PATCH 2/4] Biometrics: Promote Face Unlock to
+ SensorProperties.STRENGTH_STRONG (Class 3)
+
+---
+ .../core/java/com/android/server/biometrics/AuthService.java    | 2 +-
+ .../com/android/server/biometrics/sensors/face/FaceService.java | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/services/core/java/com/android/server/biometrics/AuthService.java b/services/core/java/com/android/server/biometrics/AuthService.java
+index 9ad4bce67e13..7bee6054fc54 100644
+--- a/services/core/java/com/android/server/biometrics/AuthService.java
++++ b/services/core/java/com/android/server/biometrics/AuthService.java
+@@ -1135,7 +1135,7 @@ public class AuthService extends SystemService {
+         final boolean supportsFaceDetect = false;
+         final boolean resetLockoutRequiresChallenge = true;
+         return new FaceSensorPropertiesInternal(sensorId,
+-                Utils.authenticatorStrengthToPropertyStrength(strength), maxTemplatesAllowed,
++                SensorProperties.STRENGTH_STRONG, maxTemplatesAllowed,
+                 componentInfo, FaceSensorProperties.TYPE_UNKNOWN, supportsFaceDetect,
+                 supportsSelfIllumination, resetLockoutRequiresChallenge);
+     }
+diff --git a/services/core/java/com/android/server/biometrics/sensors/face/FaceService.java b/services/core/java/com/android/server/biometrics/sensors/face/FaceService.java
+index 37573bf43af5..7c4ed4352d2a 100644
+--- a/services/core/java/com/android/server/biometrics/sensors/face/FaceService.java
++++ b/services/core/java/com/android/server/biometrics/sensors/face/FaceService.java
+@@ -667,7 +667,7 @@ public class FaceService extends SystemService {
+             final List<ServiceProvider> providers = new ArrayList<>();
+             FaceSensorPropertiesInternal props = new FaceSensorPropertiesInternal(
+                     SenseProvider.DEVICE_ID,
+-                    SensorProperties.STRENGTH_WEAK,
++                    SensorProperties.STRENGTH_STRONG,
+                     1, /** maxEnrollmentsPerUser **/
+                     new ArrayList(),
+                     FaceSensorProperties.TYPE_RGB,
+-- 
+2.43.0
+

@@ -1,0 +1,28 @@
+From e7ce3278f8cbe7ea729453f06f35955d8a633d9e Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Mon, 31 Aug 2026 14:46:01 +0000
+Subject: [PATCH] SurfaceFlinger: Support persist.sys.phh.sf.background_blur to
+ disable blurs
+
+---
+ services/surfaceflinger/SurfaceFlinger.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index cb6e791f2a..6338475780 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -548,6 +548,10 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
+ 
+     property_get("ro.surface_flinger.supports_background_blur", value, "0");
+     bool supportsBlurs = atoi(value);
++    std::string blurProp = base::GetProperty("persist.sys.phh.sf.background_blur"s, "");
++    if (blurProp == "disabled" || blurProp == "0" || blurProp == "false") {
++        supportsBlurs = false;
++    }
+     mSupportsBlur = supportsBlurs;
+     ALOGI_IF(!mSupportsBlur, "Disabling blur effects, they are not supported.");
+ 
+-- 
+2.43.0
+

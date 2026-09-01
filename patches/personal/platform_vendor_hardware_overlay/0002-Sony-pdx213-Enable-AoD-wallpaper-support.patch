@@ -1,0 +1,26 @@
+From 8a1f3c9e7b6d5a4c3e2b1a0f9e8d7c6b5a4e3d2c Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Sun, 30 Aug 2026 14:34:00 +0000
+Subject: [PATCH] Sony: pdx213: Enable AoD and wallpaper by default
+
+Enable config_dozeAlwaysOnDisplayAvailable, config_dozeAlwaysOnEnabled,
+and config_dozeSupportsAodWallpaper for Sony Xperia 10 III (pdx213)
+so Always-on Display with wallpaper is enabled out of the box.
+
+---
+ Sony/pdx213/res/values/config.xml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Sony/pdx213/res/values/config.xml b/Sony/pdx213/res/values/config.xml
+index d3c7e09..e4b8f1a 100644
+--- a/Sony/pdx213/res/values/config.xml
++++ b/Sony/pdx213/res/values/config.xml
+@@ -63,4 +63,6 @@
+     <bool name="config_dozeAlwaysOnDisplayAvailable">true</bool>
+     <bool name="config_powerDecoupleAutoSuspendModeFromDisplay">true</bool>
+     <bool name="config_powerDecoupleInteractiveModeFromDisplay">true</bool>
++    <bool name="config_dozeAlwaysOnEnabled">true</bool>
++    <bool name="config_dozeSupportsAodWallpaper">true</bool>
+ </resources>
+-- 
+2.43.0

@@ -1,0 +1,532 @@
+From 899768b0d68f8c960be72475ce2b20716cc98a13 Mon Sep 17 00:00:00 2001
+From: Ica <icadkren22@gmail.com>
+Date: Tue, 1 Sep 2026 15:14:40 +0000
+Subject: [PATCH] treble: Add bmN4 target, hotspot tethering DNS config, and
+ blur property handling
+
+---
+ AndroidProducts.mk                            |   4 +-
+ lineage_arm64_bmN4.mk                         |  20 +
+ .../Tethering/res/values/config.xml           |   8 +
+ phh-prop-handler.sh                           | 358 +++++++++++++++++-
+ vndk.rc                                       |  57 ++-
+ 5 files changed, 444 insertions(+), 3 deletions(-)
+ create mode 100644 lineage_arm64_bmN4.mk
+ create mode 100644 overlay/packages/modules/Connectivity/Tethering/res/values/config.xml
+ mode change 100644 => 100755 phh-prop-handler.sh
+
+diff --git a/AndroidProducts.mk b/AndroidProducts.mk
+index 0a439c3..7c1a0c5 100644
+--- a/AndroidProducts.mk
++++ b/AndroidProducts.mk
+@@ -8,4 +8,6 @@ PRODUCT_MAKEFILES += \
+     $(LOCAL_DIR)/lineage_arm64_bgN4.mk \
+     $(LOCAL_DIR)/lineage_arm64_bgNE.mk \
+     $(LOCAL_DIR)/lineage_arm64_bvN4.mk \
+-    $(LOCAL_DIR)/lineage_arm64_bvNE.mk
++    $(LOCAL_DIR)/lineage_arm64_bvNE.mk \
++    $(LOCAL_DIR)/lineage_arm64_bmN4.mk
++
+diff --git a/lineage_arm64_bmN4.mk b/lineage_arm64_bmN4.mk
+new file mode 100644
+index 0000000..8f50e71
+--- /dev/null
++++ b/lineage_arm64_bmN4.mk
+@@ -0,0 +1,20 @@
++TARGET_GAPPS_ARCH := arm64
++include build/make/target/product/aosp_arm64.mk
++$(call inherit-product, device/phh/treble/base.mk)
++
++$(call inherit-product, vendor/microg/microg.mk)
++$(call inherit-product, device/phh/treble/lineage.mk)
++
++PRODUCT_NAME := lineage_arm64_bmN4
++PRODUCT_BRAND := google
++PRODUCT_MODEL := Generic System
++
++# Overwrite the inherited "emulator" characteristics
++PRODUCT_CHARACTERISTICS := device
++
++LINEAGE_BUILDTYPE := MICROG
++LINEAGE_BUILD := GSI
++
++#EXT4
++LINEAGE_EXTRAVERSION := -EXT4
++PRODUCT_EXTRA_VNDK_VERSIONS += 28 29
+diff --git a/overlay/packages/modules/Connectivity/Tethering/res/values/config.xml b/overlay/packages/modules/Connectivity/Tethering/res/values/config.xml
+new file mode 100644
+index 0000000..7b14f9a
+--- /dev/null
++++ b/overlay/packages/modules/Connectivity/Tethering/res/values/config.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Use the BPF offload for tethering when the kernel has support. True by default.
++         If the device doesn't want to support tether BPF offload, this should be false.
++         Note that this setting could be overridden by device config.
++    -->
++    <bool translatable="false" name="config_tether_enable_bpf_offload">false</bool>
++</resources>
+diff --git a/phh-prop-handler.sh b/phh-prop-handler.sh
+old mode 100644
+new mode 100755
+index 84dc85d..b032620
+--- a/phh-prop-handler.sh
++++ b/phh-prop-handler.sh
+@@ -134,7 +134,6 @@ if [ "$1" == "sys.phh.oplus.fppress" ]; then
+     exit
+ fi
+ 
+-
+ if [ "$1" == "persist.sys.phh.securize" ]; then
+     if [[ "$prop_value" != "0" && "$prop_value" != "1" ]]; then
+         exit 1
+@@ -309,3 +308,360 @@ if [ "$1" == "persist.bluetooth.system_audio_hal.enabled" ]; then
+     restartAudio
+     exit
+ fi
++
++if [ "$1" == "persist.sys.phh.bluetooth_fix" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++
++    if [[ "$prop_value" == "true" ]]; then
++      resetprop_phh persist.bluetooth.bluetooth_audio_hal.disabled true
++      resetprop_phh persist.vendor.btstack.enable.lpa false
++      resetprop_phh ro.bluetooth.a2dp_offload.supported false
++      resetprop_phh persist.sys.phh.disable_a2dp_offload true
++      resetprop_phh vendor.bluetooth.a2dp.offload.enable false
++    else
++      resetprop_phh --delete persist.bluetooth.bluetooth_audio_hal.disabled
++      resetprop_phh --delete persist.vendor.btstack.enable.lpa
++      resetprop_phh --delete ro.bluetooth.a2dp_offload.supported
++      resetprop_phh --delete persist.sys.phh.disable_a2dp_offload
++      resetprop_phh --delete vendor.bluetooth.a2dp.offload.enable
++    fi
++    restartAudio
++    exit
++fi
++
++if [ "$1" == "persist.sys.phh.lmk_tweaks" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        # aggressive lmkd + background-app limits: free foreground headroom on
++        # low-RAM devices (e.g. kernel-4.9 GSIs where isolated renderers get
++        # OOM-reaped, #92). overrides the GSI's system.prop lmkd defaults.
++        resetprop_phh ro.lmk.use_minfree_levels true
++        resetprop_phh ro.lmk.kill_timeout_ms 100
++        resetprop_phh ro.lmk.low 1001
++        resetprop_phh ro.lmk.medium 800
++        resetprop_phh ro.lmk.critical 0
++        resetprop_phh ro.lmk.kill_heaviest_task false
++        resetprop_phh ro.lmk.critical_upgrade false
++        resetprop_phh ro.lmk.upgrade_pressure 100
++        resetprop_phh ro.lmk.downgrade_pressure 250
++        resetprop_phh ro.lmk.psi_partial_stall_ms 200
++        resetprop_phh ro.lmk.psi_complete_stall_ms 700
++        resetprop_phh ro.sys.fw.bg_apps_limit 16
++        resetprop_phh ro.config.max_starting_bg 8
++    else
++        # off: remove the overrides so the GSI's system.prop lmkd defaults
++        # (trebledroid-staging 0014) apply again.
++        resetprop_phh --delete ro.lmk.use_minfree_levels
++        resetprop_phh --delete ro.lmk.kill_timeout_ms
++        resetprop_phh --delete ro.lmk.low
++        resetprop_phh --delete ro.lmk.medium
++        resetprop_phh --delete ro.lmk.critical
++        resetprop_phh --delete ro.lmk.kill_heaviest_task
++        resetprop_phh --delete ro.lmk.critical_upgrade
++        resetprop_phh --delete ro.lmk.upgrade_pressure
++        resetprop_phh --delete ro.lmk.downgrade_pressure
++        resetprop_phh --delete ro.lmk.psi_partial_stall_ms
++        resetprop_phh --delete ro.lmk.psi_complete_stall_ms
++        resetprop_phh --delete ro.sys.fw.bg_apps_limit
++        resetprop_phh --delete ro.config.max_starting_bg
++    fi
++    setprop ctl.restart lmkd
++    exit
++fi
++
++if [ "$1" == "persist.sys.phh.axion_props" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        #axion props
++        # set threshold to filter unused apps
++        resetprop_phh pm.dexopt.downgrade_after_inactive_days 10
++        resetprop_phh pm.dexopt.boot-after-ota speed-profile
++
++        resetprop_phh dalvik.vm.enable_pr_dexopt true
++        resetprop_phh dalvik.vm.finalizer-timeout-ms 40000
++        resetprop_phh dalvik.vm.ps-min-first-save-ms 150000
++
++        # disable RescueParty
++        resetprop_phh persist.sys.disable_rescue true
++
++        # sf
++        resetprop_phh ro.surface_flinger.uclamp.min 165
++
++        # sound
++        resetprop_phh audio.safemedia.bypass 1
++
++
++
++        # virtual ab
++        resetprop_phh ro.virtual_ab.compression.enabled true
++        resetprop_phh ro.virtual_ab.userspace.snapshots.enabled true
++        resetprop_phh ro.virtual_ab.batch_writes true
++        resetprop_phh ro.virtual_ab.io_uring.enabled false
++        resetprop_phh ro.virtual_ab.compression.xor.enabled false
++        resetprop_phh ro.virtual_ab.read_ahead_size 16
++        resetprop_phh ro.virtual_ab.o_direct.enabled true
++        resetprop_phh ro.virtual_ab.merge_thread_priority 19
++        resetprop_phh ro.virtual_ab.worker_thread_priority 0
++        resetprop_phh ro.virtual_ab.num_worker_threads 3
++        resetprop_phh ro.virtual_ab.num_merge_threads 1
++        resetprop_phh ro.virtual_ab.num_verify_threads 1
++        resetprop_phh ro.virtual_ab.cow_op_merge_size 16
++        resetprop_phh ro.virtual_ab.verify_threshold_size 1073741824
++        resetprop_phh ro.virtual_ab.verify_block_size 1048576
++        resetprop_phh ro.virtual_ab.compression.threads true
++
++        # Disable touch video heatmap to reduce latency, motion jitter, and CPU usage
++        # on supported devices with Deep Press input classifier HALs and models
++        resetprop_phh ro.input.video_enabled false
++
++        # EGL shader cache
++        resetprop_phh ro.egl.blobcache.multifile_limit 67108864
++    else
++        #axion props
++        # set threshold to filter unused apps
++        resetprop_phh --delete pm.dexopt.downgrade_after_inactive_days
++        resetprop_phh --delete pm.dexopt.boot-after-ota
++
++        resetprop_phh --delete dalvik.vm.enable_pr_dexopt
++        resetprop_phh --delete dalvik.vm.finalizer-timeout-ms
++        resetprop_phh --delete dalvik.vm.ps-min-first-save-ms
++
++        # disable RescueParty
++        resetprop_phh --delete persist.sys.disable_rescue
++
++        # sf
++        resetprop_phh --delete ro.surface_flinger.uclamp.min
++
++        # sound
++        resetprop_phh --delete audio.safemedia.bypass
++
++        # virtual ab
++        resetprop_phh --delete ro.virtual_ab.compression.enabled
++        resetprop_phh --delete ro.virtual_ab.userspace.snapshots.enabled
++        resetprop_phh --delete ro.virtual_ab.batch_writes
++        resetprop_phh --delete ro.virtual_ab.io_uring.enabled
++        resetprop_phh --delete ro.virtual_ab.compression.xor.enabled
++        resetprop_phh --delete ro.virtual_ab.read_ahead_size
++        resetprop_phh --delete ro.virtual_ab.o_direct.enabled
++        resetprop_phh --delete ro.virtual_ab.merge_thread_priority
++        resetprop_phh --delete ro.virtual_ab.worker_thread_priority
++        resetprop_phh --delete ro.virtual_ab.num_worker_threads
++        resetprop_phh --delete ro.virtual_ab.num_merge_threads
++        resetprop_phh --delete ro.virtual_ab.num_verify_threads
++        resetprop_phh --delete ro.virtual_ab.cow_op_merge_size
++        resetprop_phh --delete ro.virtual_ab.verify_threshold_size
++        resetprop_phh --delete ro.virtual_ab.verify_block_size
++        resetprop_phh --delete ro.virtual_ab.compression.threads
++
++        # Disable touch video heatmap to reduce latency, motion jitter, and CPU usage
++        # on supported devices with Deep Press input classifier HALs and models
++        resetprop_phh --delete ro.input.video_enabled
++
++        # EGL shader cache
++        resetprop_phh --delete ro.egl.blobcache.multifile_limit
++
++    fi
++    exit
++fi
++
++if [ "$1" == "persist.sys.phh.scroll_boost" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        resetprop_phh persist.sys.perf.scroll_opt true
++        resetprop_phh persist.sys.perf.scroll_opt.heavy_app 2
++        resetprop_phh ro.surface_flinger.uclamp.min 135
++    else
++        resetprop_phh --delete persist.sys.perf.scroll_opt
++        resetprop_phh --delete persist.sys.perf.scroll_opt.heavy_app
++        resetprop_phh --delete ro.surface_flinger.uclamp.min
++    fi
++    exit
++fi
++
++if [ "$1" == "persist.sys.phh.sf.background_blur" ]; then
++    if [[ "$prop_value" != "disabled" && "$prop_value" != "gaussian" && "$prop_value" != "kawase" && "$prop_value" != "kawase2" && "$prop_value" != "kawase2_fix_aliasing" ]]; then
++        exit 1
++    fi
++
++    if [[ "$prop_value" == disabled ]]; then
++        resetprop_phh ro.surface_flinger.supports_background_blur 0
++        settings put global disable_window_blurs 1
++        resetprop_phh --delete debug.renderengine.blur_algorithm
++    fi
++
++    if [[ "$prop_value" == gaussian ]]; then
++        resetprop_phh ro.surface_flinger.supports_background_blur 1
++        settings put global disable_window_blurs 0
++        resetprop_phh ro.sf.blurs_are_expensive=0
++        resetprop_phh ro.launcher.blur.appLaunch=1
++        resetprop_phh debug.renderengine.blur_algorithm gaussian
++    fi
++
++    if [[ "$prop_value" == kawase ]]; then
++        resetprop_phh ro.surface_flinger.supports_background_blur 1
++        settings put global disable_window_blurs 0
++        resetprop_phh ro.sf.blurs_are_expensive=0
++        resetprop_phh ro.launcher.blur.appLaunch=0
++        resetprop_phh debug.renderengine.blur_algorithm kawase
++        aflags disable com.android.graphics.surfaceflinger.flags.window_blur_kawase2
++        aflags disable com.android.graphics.surfaceflinger.flags.window_blur_kawase2_fix_aliasing
++    fi
++
++    if [[ "$prop_value" == kawase2 ]]; then
++        resetprop_phh ro.surface_flinger.supports_background_blur 1
++        settings put global disable_window_blurs 0
++        resetprop_phh ro.sf.blurs_are_expensive=0
++        resetprop_phh ro.launcher.blur.appLaunch=0
++        resetprop_phh debug.renderengine.blur_algorithm kawase2
++        aflags enable com.android.graphics.surfaceflinger.flags.window_blur_kawase2
++        aflags disable com.android.graphics.surfaceflinger.flags.window_blur_kawase2_fix_aliasing
++    fi
++
++    if [[ "$prop_value" == kawase2_fix_aliasing ]]; then
++        resetprop_phh ro.surface_flinger.supports_background_blur 1
++        settings put global disable_window_blurs 0
++        resetprop_phh ro.sf.blurs_are_expensive=0
++        resetprop_phh ro.launcher.blur.appLaunch=0
++        resetprop_phh debug.renderengine.blur_algorithm kawase2_fix_aliasing
++        aflags enable com.android.graphics.surfaceflinger.flags.window_blur_kawase2
++        aflags enable com.android.graphics.surfaceflinger.flags.window_blur_kawase2_fix_aliasing
++    fi
++
++    exit
++fi
++
++
++if [ "$1" == "persist.sys.phh.sf.renderengine.backend" ]; then
++    if [[ "$prop_value" != "" && "$prop_value" != "skiagl" && "$prop_value" != "skiaglthreaded" && "$prop_value" != "skiavk" && "$prop_value" != "skiavkthreaded" ]]; then
++        exit 1
++    fi
++
++    if [[ "$prop_value" == "" ]]; then
++        resetprop_phh --delete debug.renderengine.backend
++    fi
++
++    if [[ "$prop_value" == skiagl ]]; then
++        resetprop_phh debug.renderengine.backend skiagl
++    fi
++
++    if [[ "$prop_value" == skiaglthreaded ]]; then
++        resetprop_phh debug.renderengine.backend skiaglthreaded
++    fi
++
++    if [[ "$prop_value" == skiavk ]]; then
++        resetprop_phh debug.renderengine.backend skiavk
++    fi
++
++    if [[ "$prop_value" == skiavkthreaded ]]; then
++        resetprop_phh debug.renderengine.backend skiavkthreaded
++    fi
++
++    exit
++fi
++
++if [ "$1" == "persist.sys.phh.sf.debug.renderengine.backend" ]; then
++    if [[ "$prop_value" != "" && "$prop_value" != "skiagl" && "$prop_value" != "skiavk" ]]; then
++        exit 1
++    fi
++
++    if [[ "$prop_value" == "" ]]; then
++        resetprop_phh --delete ro.hwui.use_vulkan
++    fi
++
++    if [[ "$prop_value" == skiagl ]]; then
++        resetprop_phh ro.hwui.use_vulkan 0
++    fi
++
++    if [[ "$prop_value" == skiavk ]]; then
++        resetprop_phh ro.hwui.use_vulkan 1
++    fi
++
++    exit
++fi
++
++# Prefer HW codecs
++if [ "$1" == "persist.sys.phh.prefer_hw_codecs" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++        resetprop_phh -n media.c2.hal.selection aidl
++    else
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++        resetprop_phh -n media.c2.hal.selection ""
++    fi
++    exit
++fi
++
++# Prefer SW codecs
++if [ "$1" == "persist.sys.phh.prefer_sw_codecs" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        resetprop_phh -n debug.stagefright.ccodec 0
++        resetprop_phh -n debug.stagefright.omx_default_rank 512
++    else
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++    fi
++    exit
++fi
++
++# Max compatibility
++if [ "$1" == "persist.sys.phh.max_compatibility" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 512
++        resetprop_phh -n media.c2.hal.selection ""
++    else
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++        resetprop_phh -n media.c2.hal.selection ""
++    fi
++    exit
++fi
++
++# Fix screen recorder
++if [ "$1" == "persist.sys.phh.fix_screen_recorder" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 256
++    else
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++    fi
++    exit
++fi
++
++# Legacy mode
++if [ "$1" == "persist.sys.phh.legacy_mode" ]; then
++    if [[ "$prop_value" != "false" && "$prop_value" != "true" ]]; then
++        exit 1
++    fi
++    if [[ "$prop_value" == "true" ]]; then
++        resetprop_phh -n debug.stagefright.ccodec 0
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++    else
++        resetprop_phh -n debug.stagefright.ccodec 4
++        resetprop_phh -n debug.stagefright.omx_default_rank 0
++    fi
++    exit
++fi
+diff --git a/vndk.rc b/vndk.rc
+index e3e6d11..053e884 100644
+--- a/vndk.rc
++++ b/vndk.rc
+@@ -20,6 +20,7 @@ service power_mode_monitor /system/bin/power-mode-monitor.sh
+     oneshot
+     disabled
+     seclabel u:r:phhsu_daemon:s0
++
+ on property:sys.boot_completed=1
+     start phh_on_boot
+     start power_mode_monitor
+@@ -118,7 +119,7 @@ on property:ro.vendor.radio.default_network=*
+     setprop ro.telephony.default_network ${ro.vendor.radio.default_network}
+ 
+ on property:persist.sys.phh.force_display_5g=1
+-    exec u:r:phhsu_daemon:s0 root -- /system/bin/resetprop_phh ro.telephony.default_network 33,33
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/resetprop_phh ro.telephony.default_network 26
+ 
+ on property:persist.sys.phh.ims.floss=true
+     exec u:r:phhsu_daemon:s0 root -- /system/bin/resetprop_phh ro.telephony.iwlan_operation_mode AP-assisted
+@@ -126,9 +127,63 @@ on property:persist.sys.phh.ims.floss=true
+ on property:persist.sys.phh.enable_sf_gl_backpressure=*
+     setprop debug.sf.enable_gl_backpressure ${persist.sys.phh.enable_sf_gl_backpressure}
+ 
++on property:persist.sys.phh.enable_sf_hwc_backpressure=*
++    setprop debug.sf.enable_hwc_backpressure ${persist.sys.phh.enable_sf_hwc_backpressure}
++
++on property:persist.sys.phh.lmk_tweaks=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.lmk_tweaks"
++
++on property:persist.sys.phh.scroll_boost=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.scroll_boost"
++
++on property:persist.sys.phh.axion_props=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.axion_props"
++
++on property:persist.sys.phh.bluetooth_fix=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.bluetooth_fix"
++
++on property:persist.sys.activity_anim_perf_override=*
++     exec u:r:phhsu_daemon:s0 root -- /system/bin/resetprop_phh debug.sf.predict_hwc_composition_strategy 0
++
++on property:persist.sys.phh.prefer_hw_codecs=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.prefer_hw_codecs"
++
++on property:persist.sys.phh.prefer_sw_codecs=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.prefer_sw_codecs"
++
++on property:persist.sys.phh.fix_screen_recorder=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.fix_screen_recorder"
++
++on property:persist.sys.phh.max_compatibility=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.max_compatibility"
++
++on property:persist.sys.phh.legacy_mode=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.legacy_mode"
++
++# Latch Unsigned Buffers
++on property:persist.sys.phh.sf_latch_unsignaled=*
++    setprop debug.sf.latch_unsignaled ${persist.sys.phh.sf_latch_unsignaled}
++
++# Auto Latch Unsigned
++on property:persist.sys.phh.sf_auto_latch_unsignaled=*
++    setprop debug.sf.auto_latch_unsignaled ${persist.sys.phh.sf_auto_latch_unsignaled}
++
++# Disable Backpressure
++on property:persist.sys.phh.sf_disable_backpressure=*
++    setprop debug.sf.disable_backpressure ${persist.sys.phh.sf_disable_backpressure}
++
++on property:persist.sys.phh.sf.background_blur=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.sf.background_blur"
++
+ on property:persist.sys.phh.dynamic_fps=*
+     setprop ro.surface_flinger.use_content_detection_for_refresh_rate ${persist.sys.phh.dynamic_fps}
+ 
++on property:persist.sys.phh.sf.debug.renderengine.backend=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.sf.debug.renderengine.backend"
++
++on property:persist.sys.phh.sf.renderengine.backend=*
++    exec u:r:phhsu_daemon:s0 root -- /system/bin/phh-prop-handler.sh "persist.sys.phh.sf.renderengine.backend"
++
+ # Set watchdog timer to 30 seconds and pet it every 10 seconds to get a 20 second margin
+ service watchdogd-gsi /system/bin/watchdogd 10 20
+     class core
+-- 
+2.43.0
+

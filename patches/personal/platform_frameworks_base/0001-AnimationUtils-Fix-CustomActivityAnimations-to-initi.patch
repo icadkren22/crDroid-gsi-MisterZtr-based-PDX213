@@ -1,0 +1,107 @@
+From dcb76b2e5e960cf097217ee108aea6baeef293c6 Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Tue, 1 Sep 2026 00:58:32 +0000
+Subject: [PATCH 1/4] AnimationUtils: Fix CustomActivityAnimations to
+ initialize context and build clean animation instances
+
+---
+ .../view/animation/AnimationUtils.java        | 64 ++++++++-----------
+ 1 file changed, 28 insertions(+), 36 deletions(-)
+
+diff --git a/core/java/android/view/animation/AnimationUtils.java b/core/java/android/view/animation/AnimationUtils.java
+index 2c69fc06a23d..b43b6ea27eef 100644
+--- a/core/java/android/view/animation/AnimationUtils.java
++++ b/core/java/android/view/animation/AnimationUtils.java
+@@ -237,13 +237,13 @@ public class AnimationUtils {
+         if (sPerfAnimEnabled) {
+             switch (id) {
+                 case R.anim.activity_open_enter:
+-                    return CustomActivityAnimations.getOpenEnter();
++                    return CustomActivityAnimations.getOpenEnter(context);
+                 case R.anim.activity_open_exit:
+-                    return CustomActivityAnimations.getOpenExit();
++                    return CustomActivityAnimations.getOpenExit(context);
+                 case R.anim.activity_close_enter:
+-                    return CustomActivityAnimations.getCloseEnter();
++                    return CustomActivityAnimations.getCloseEnter(context);
+                 case R.anim.activity_close_exit:
+-                    return CustomActivityAnimations.getCloseExit();
++                    return CustomActivityAnimations.getCloseExit(context);
+                 case R.anim.app_starting_exit:
+                     return ActivityAnimations.getAppStartingExit();
+             }
+@@ -768,47 +768,39 @@ public class AnimationUtils {
+         }
+ 
+         /** @hide */
+-        public static Animation getOpenEnter() {
+-            if (sOpenEnter == null) {
+-                sOpenEnter = new ActivityAnimFactory()
+-                        .fromX(48)
+-                        .toX(0)
+-                        .build();
+-            }
+-            return sOpenEnter;
++        public static Animation getOpenEnter(Context context) {
++            maybeInit(context);
++            return new ActivityAnimFactory()
++                    .fromX(48)
++                    .toX(0)
++                    .build();
+         }
+ 
+         /** @hide */
+-        public static Animation getOpenExit() {
+-            if (sOpenExit == null) {
+-                sOpenExit = new ActivityAnimFactory()
+-                        .fromX(0)
+-                        .toX(-48)
+-                        .build();
+-            }
+-            return sOpenExit;
++        public static Animation getOpenExit(Context context) {
++            maybeInit(context);
++            return new ActivityAnimFactory()
++                    .fromX(0)
++                    .toX(-48)
++                    .build();
+         }
+ 
+         /** @hide */
+-        public static Animation getCloseEnter() {
+-            if (sCloseEnter == null) {
+-                sCloseEnter = new ActivityAnimFactory()
+-                        .fromX(-48)
+-                        .toX(0)
+-                        .build();
+-            }
+-            return sCloseEnter;
++        public static Animation getCloseEnter(Context context) {
++            maybeInit(context);
++            return new ActivityAnimFactory()
++                    .fromX(-48)
++                    .toX(0)
++                    .build();
+         }
+ 
+         /** @hide */
+-        public static Animation getCloseExit() {
+-            if (sCloseExit == null) {
+-                sCloseExit = new ActivityAnimFactory()
+-                        .fromX(0)
+-                        .toX(48)
+-                        .build();
+-            }
+-            return sCloseExit;
++        public static Animation getCloseExit(Context context) {
++            maybeInit(context);
++            return new ActivityAnimFactory()
++                    .fromX(0)
++                    .toX(48)
++                    .build();
+         }
+     }
+ }
+-- 
+2.43.0
+

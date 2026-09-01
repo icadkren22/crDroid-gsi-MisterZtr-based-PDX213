@@ -1,0 +1,69 @@
+From 7da0cbe75f15d7df53c6923952f2b4d3d58b7417 Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Tue, 1 Sep 2026 09:56:59 +0000
+Subject: [PATCH] Settings: Support force_display_5g and NR default network for
+ Preferred Network Type and 5G UI
+
+---
+ .../EnabledNetworkModePreferenceController.java       | 11 +++++++++++
+ .../settings/network/telephony/NrRepository.kt        |  8 ++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java b/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java
+index 932897ec20d..2647405c29d 100644
+--- a/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java
++++ b/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java
+@@ -323,6 +323,12 @@ public class EnabledNetworkModePreferenceController extends
+             mSupported5gRadioAccessFamily = checkSupportedRadioBitmask(
+                     mTelephonyManager.getSupportedRadioAccessFamily(),
+                     TelephonyManager.NETWORK_TYPE_BITMASK_NR);
++            boolean forceDisplay5g = android.os.SystemProperties.getBoolean("persist.sys.phh.force_display_5g", false)
++                    || android.os.SystemProperties.getInt("ro.telephony.default_network", 0) >= TelephonyManager.NETWORK_MODE_NR_ONLY;
++            if (forceDisplay5g) {
++                mAllowed5gNetworkType = true;
++                mSupported5gRadioAccessFamily = true;
++            }
+             if (carrierConfig != null) {
+                 mIsGlobalCdma = mTelephonyManager.isLteCdmaEvdoGsmWcdmaEnabled()
+                         && carrierConfig.getBoolean(
+@@ -816,6 +822,11 @@ public class EnabledNetworkModePreferenceController extends
+         }
+ 
+         private boolean showNrList() {
++            boolean forceDisplay5g = android.os.SystemProperties.getBoolean("persist.sys.phh.force_display_5g", false)
++                    || android.os.SystemProperties.getInt("ro.telephony.default_network", 0) >= TelephonyManager.NETWORK_MODE_NR_ONLY;
++            if (forceDisplay5g) {
++                return true;
++            }
+             return mSupported5gRadioAccessFamily && mAllowed5gNetworkType;
+         }
+ 
+diff --git a/src/com/android/settings/network/telephony/NrRepository.kt b/src/com/android/settings/network/telephony/NrRepository.kt
+index e6247fd2655..99220110816 100644
+--- a/src/com/android/settings/network/telephony/NrRepository.kt
++++ b/src/com/android/settings/network/telephony/NrRepository.kt
+@@ -26,6 +26,10 @@ class NrRepository(private val context: Context) {
+     private val carrierConfigRepository = CarrierConfigRepository(context)
+ 
+     fun isNrAvailable(subId: Int): Boolean {
++        if (android.os.SystemProperties.getBoolean("persist.sys.phh.force_display_5g", false)
++                || android.os.SystemProperties.getInt("ro.telephony.default_network", 0) >= TelephonyManager.NETWORK_MODE_NR_ONLY) {
++            return true
++        }
+         if (!SubscriptionManager.isValidSubscriptionId(subId) || !has5gCapability(subId)) {
+             return false
+         }
+@@ -38,6 +42,10 @@ class NrRepository(private val context: Context) {
+     }
+ 
+     private fun has5gCapability(subId: Int): Boolean {
++        if (android.os.SystemProperties.getBoolean("persist.sys.phh.force_display_5g", false)
++                || android.os.SystemProperties.getInt("ro.telephony.default_network", 0) >= TelephonyManager.NETWORK_MODE_NR_ONLY) {
++            return true
++        }
+         val telephonyManager = context.telephonyManager(subId)
+         return (telephonyManager.supportedRadioAccessFamily and
+                 TelephonyManager.NETWORK_TYPE_BITMASK_NR > 0)
+-- 
+2.43.0
+

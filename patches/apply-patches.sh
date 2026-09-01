@@ -2,7 +2,7 @@
 
 set -e
 
-source="$(pwd)/LineageOS_gsi"
+source="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 trebledroid="$source/patches/trebledroid"
 trebledroid_staging="$source/patches/trebledroid-staging"
 misterztr="$source/patches/misterztr"

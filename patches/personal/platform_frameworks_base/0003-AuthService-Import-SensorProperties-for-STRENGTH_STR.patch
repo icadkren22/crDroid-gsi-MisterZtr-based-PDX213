@@ -1,0 +1,24 @@
+From 53647f987eac0e72e24162ed7d28ae4f6d9f795f Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Tue, 1 Sep 2026 10:20:27 +0000
+Subject: [PATCH 3/4] AuthService: Import SensorProperties for STRENGTH_STRONG
+
+---
+ .../core/java/com/android/server/biometrics/AuthService.java     | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/services/core/java/com/android/server/biometrics/AuthService.java b/services/core/java/com/android/server/biometrics/AuthService.java
+index 7bee6054fc54..97f23de54ed0 100644
+--- a/services/core/java/com/android/server/biometrics/AuthService.java
++++ b/services/core/java/com/android/server/biometrics/AuthService.java
+@@ -51,6 +51,7 @@ import android.hardware.biometrics.ITestSessionCallback;
+ import android.hardware.biometrics.IdentityCheckStatus;
+ import android.hardware.biometrics.PromptInfo;
+ import android.hardware.biometrics.SensorLocationInternal;
++import android.hardware.biometrics.SensorProperties;
+ import android.hardware.biometrics.SensorPropertiesInternal;
+ import android.hardware.face.FaceSensorConfigurations;
+ import android.hardware.face.FaceSensorProperties;
+-- 
+2.43.0
+

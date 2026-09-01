@@ -1,0 +1,61 @@
+From c6b1aec4ffa6d3169283862ac5c5f9156c217987 Mon Sep 17 00:00:00 2001
+From: Builder <builder@localhost>
+Date: Mon, 31 Aug 2026 14:43:03 +0000
+Subject: [PATCH] Tethering: advertise 1.1.1.1, 1.0.0.1, 8.8.8.8 and enable
+ legacy DNS proxy
+
+---
+ Tethering/src/android/net/ip/IpServer.java                 | 7 ++++++-
+ .../src/com/android/networkstack/tethering/Tethering.java  | 4 ++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/Tethering/src/android/net/ip/IpServer.java b/Tethering/src/android/net/ip/IpServer.java
+index 783bff3622..754df6dca3 100644
+--- a/Tethering/src/android/net/ip/IpServer.java
++++ b/Tethering/src/android/net/ip/IpServer.java
+@@ -52,6 +52,7 @@ import android.annotation.SuppressLint;
+ import android.content.Context;
+ import android.net.INetd;
+ import android.net.INetworkStackStatusCallback;
++import android.net.InetAddresses;
+ import android.net.IpPrefix;
+ import android.net.LinkAddress;
+ import android.net.LinkProperties;
+@@ -670,10 +671,14 @@ public class IpServer extends StateMachineShim {
+         final int subnetPrefixLength = mInterfaceType == TETHERING_WIFI_P2P
+                 ? mP2pLeasesSubnetPrefixLength : 0 /* default value */;
+ 
++        final Inet4Address dns1 = (Inet4Address) InetAddresses.parseNumericAddress("1.1.1.1");
++        final Inet4Address dns2 = (Inet4Address) InetAddresses.parseNumericAddress("1.0.0.1");
++        final Inet4Address dns3 = (Inet4Address) InetAddresses.parseNumericAddress("8.8.8.8");
++
+         return new DhcpServingParamsParcelExt()
+             .setDefaultRouters(defaultRouter)
+             .setDhcpLeaseTimeSecs(DHCP_LEASE_TIME_SECS)
+-            .setDnsServers(dnsServer)
++            .setDnsServers(dns1, dns2, dns3)
+             .setServerAddr(serverAddr)
+             .setMetered(true)
+             .setSingleClientAddr(clientAddr)
+diff --git a/Tethering/src/com/android/networkstack/tethering/Tethering.java b/Tethering/src/com/android/networkstack/tethering/Tethering.java
+index 64aa00b8f5..722e81c2c4 100644
+--- a/Tethering/src/com/android/networkstack/tethering/Tethering.java
++++ b/Tethering/src/com/android/networkstack/tethering/Tethering.java
+@@ -2090,12 +2090,12 @@ public class Tethering {
+             final String[] dhcpRanges = cfg.useLegacyDhcpServer()
+                     ? cfg.legacyDhcpRanges : new String[0];
+             try {
+-                NetdUtils.tetherStart(mNetd, false /** usingLegacyDnsProxy */, dhcpRanges);
++                NetdUtils.tetherStart(mNetd, true /** usingLegacyDnsProxy */, dhcpRanges);
+             } catch (RemoteException | ServiceSpecificException e) {
+                 try {
+                     // Stop and retry.
+                     mNetd.tetherStop();
+-                    NetdUtils.tetherStart(mNetd, false /** usingLegacyDnsProxy */, dhcpRanges);
++                    NetdUtils.tetherStart(mNetd, true /** usingLegacyDnsProxy */, dhcpRanges);
+                 } catch (RemoteException | ServiceSpecificException ee) {
+                     mLog.e(ee);
+                     transitionTo(mStartTetheringErrorState);
+-- 
+2.43.0
+
