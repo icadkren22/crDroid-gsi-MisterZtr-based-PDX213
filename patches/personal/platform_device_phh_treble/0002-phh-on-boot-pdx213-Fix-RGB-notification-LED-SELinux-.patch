@@ -1,0 +1,59 @@
+From f521516ce1a660266d8a317a78e24b1b40585d90 Mon Sep 17 00:00:00 2001
+From: Ica <icadkren22@gmail.com>
+Date: Wed, 2 Sep 2026 02:21:04 +0000
+Subject: [PATCH] phh-on-boot: pdx213: Fix RGB notification LED SELinux label
+ for PM6150L
+
+The Sony Xperia 10 III (pdx213) uses a PM6150L PMIC whose RGB composite
+LED node (/sys/class/leds/rgb) gets the generic 'u:object_r:sysfs:s0'
+SELinux label at boot. This happens because the vendor file_contexts
+regex pattern 'qcom,pmi[0-9]+' matches the individual color subdirs
+(red, green, blue) at startup but fails to match 'qcom,pm6150l' for the
+virtual 'rgb' composite node that illumination_service uses to synchronize
+all three channels together.
+
+illumination_service (hal_light domain) only holds allow rules for
+'vendor_sysfs_graphics', not the generic 'sysfs' type. As a result,
+every attempt to write to 'rgb/sync_state' (used to start synchronized
+RGB blinking for notifications) fails with EACCES, silently breaking
+notification LED blinking on all GSI builds for this device.
+
+Fix: relabel the rgb node to 'vendor_sysfs_graphics' at boot and restart
+illumination_service so it re-opens the now-accessible sysfs node.
+
+Reported on: crDroid GSI, Doze GSI, Lost-Entrepreneur GSI builds.
+Affects: Sony Xperia 10 III (pdx213), PM6150L PMIC.
+---
+ phh-on-boot.sh | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/phh-on-boot.sh b/phh-on-boot.sh
+index 1c7084c..9bacf0c 100644
+--- a/phh-on-boot.sh
++++ b/phh-on-boot.sh
+@@ -111,6 +111,22 @@ if ! getprop ro.boot.hardware.platform | grep -qE -e '^gs(101|201|301)$' -e '^zu
+     sleep 10
+ fi
+ 
++# Sony Xperia 10 III (pdx213) - Fix RGB notification LED SELinux label.
++# The PM6150L RGB composite sysfs node (/sys/class/leds/rgb) gets the
++# generic 'sysfs' label at boot because the vendor file_contexts regex
++# uses 'qcom,pmi[0-9]+' which doesn't match 'qcom,pm6150l'. The
++# illumination_service is only allowed to access 'vendor_sysfs_graphics',
++# so writing to sync_state fails with Permission denied, breaking all
++# notification LED blinking. We relabel the node and restart the service.
++if getprop ro.product.vendor.device | grep -q "pdx213"; then
++    rgb_path="/sys/devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-05/c440000.qcom,spmi:qcom,pm6150l@5:qcom,leds@d000/leds/rgb"
++    if [ -d "$rgb_path" ]; then
++        chcon -R u:object_r:vendor_sysfs_graphics:s0 "$rgb_path"
++        setprop ctl.restart illumination
++        log -t phh-on-boot "pdx213: Relabeled rgb LED node and restarted illumination_service"
++    fi
++fi
++
+ minijailSrc=/system/system_ext/apex/com.android.vndk.v28/lib/libminijail.so
+ minijailSrc64=/system/system_ext/apex/com.android.vndk.v28/lib64/libminijail.so
+ if [ "$vndk" = 27 ];then
+-- 
+2.43.0
+
