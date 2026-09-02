@@ -1,0 +1,39 @@
+From 4e0b353dffc192f2ae63caae3b400d03abf01597 Mon Sep 17 00:00:00 2001
+From: Ica <icadkren22@gmail.com>
+Date: Wed, 2 Sep 2026 05:08:59 +0000
+Subject: [PATCH] NotificationRecord: Always return default Light for
+ LineageNotificationLights
+
+Instead of returning null when a channel has shouldShowLights() == false,
+always return a default Light instance. LineageNotificationLights.calcLights()
+already respects the user's global notification pulse setting
+(mNotificationPulseEnabled), so returning null here causes the LED to
+never fire even when the user has enabled it in crDroid Settings.
+
+This allows LineageNotificationLights to auto-generate LED colors from
+app icons for all modern apps that no longer set FLAG_SHOW_LIGHTS.
+---
+ .../android/server/notification/NotificationRecord.java    | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/services/core/java/com/android/server/notification/NotificationRecord.java b/services/core/java/com/android/server/notification/NotificationRecord.java
+index c71444472393..ea518d396059 100644
+--- a/services/core/java/com/android/server/notification/NotificationRecord.java
++++ b/services/core/java/com/android/server/notification/NotificationRecord.java
+@@ -315,8 +315,11 @@ public final class NotificationRecord {
+ 
+         int channelLightColor = getChannel().getLightColor() != 0 ? getChannel().getLightColor()
+                 : defaultLightColor;
+-        Light light = getChannel().shouldShowLights() ? new Light(channelLightColor,
+-                defaultLightOn, defaultLightOff) : null;
++        // Always produce a Light so LineageNotificationLights.calcLights() can decide
++        // whether to illuminate based on global user settings (mNotificationPulseEnabled).
++        // Without this, apps that don't set FLAG_SHOW_LIGHTS never pulse the LED even
++        // if the user has enabled notification lights in crDroid Settings.
++        Light light = new Light(channelLightColor, defaultLightOn, defaultLightOff);
+         if (mPreChannelsNotification
+                 && (getChannel().getUserLockedFields()
+                 & NotificationChannel.USER_LOCKED_LIGHTS) == 0) {
+-- 
+2.43.0
+
