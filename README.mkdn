@@ -120,6 +120,12 @@ This fork includes dedicated patches in `patches/personal/` addressing critical 
 * **SurfaceFlinger Blur Toggle:** Reads `persist.sys.phh.sf.background_blur` to enable/disable blurs dynamically.
 * **AnimationUtils:** Fixed custom activity transition animation initialization crashes.
 
+### 4.4 RGB Notification LED & Battery Charging Light (Sony Xperia 10 III / PDX213 & Generic GSI)
+* **PM6150L Sysfs Node Permissions (`phh-on-boot.sh`):** Fixes `sync_state`, `start_blink`, and `brightness` node ownership to `system:system` (mode `0660`) at boot. Uses path-based detection (`/sys/devices/platform/soc/.../pm6150l.../leds/rgb`) without modifying SELinux labels, preserving Qualcomm vibrator HAL (`vendor.qti.vibrator`) directory scanning.
+* **Device Light Capabilities (`lineage-sdk`):** Sets `config_deviceLightCapabilities` to `75` (`LIGHTS_RGB_NOTIFICATION_LED | LIGHTS_RGB_BATTERY_LED | LIGHTS_PULSATING_LED | LIGHTS_BATTERY_LED`), enabling `BatteryService` and `LineageBatteryLights` to drive the LED when charging.
+* **Universal App Notification LED Pulse (`frameworks/base`):** Updates `NotificationRecord.java` to always generate default `Light` parameters so `LineageNotificationLights` can auto-calculate per-app LED colors and pulse for modern apps that omit legacy `FLAG_SHOW_LIGHTS`.
+* **Device Hardware Overlay (`vendor/hardware_overlay`):** Configures `config_intrusiveNotificationLed = true` with 500ms ON / 2000ms OFF timings in Sony `pdx213` overlay.
+
 ---
 
 ## 5. crDroid features / overlays, translations and forum template
