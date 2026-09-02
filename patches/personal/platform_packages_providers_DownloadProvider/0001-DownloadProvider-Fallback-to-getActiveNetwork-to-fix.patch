@@ -1,4 +1,4 @@
-From 4b626fd8c6c8a36fc8d25c59782de8a4600b23d8 Mon Sep 17 00:00:00 2001
+From 4ae31967f6373d57d1c76004b97ba354e410d410 Mon Sep 17 00:00:00 2001
 From: Ica <icadkren22@gmail.com>
 Date: Wed, 2 Sep 2026 13:00:46 +0000
 Subject: [PATCH] DownloadProvider: Fallback to getActiveNetwork to fix stuck
@@ -13,10 +13,10 @@ scheduleAsPackage failures to ensure downloads start immediately.
 
 Change-Id: I9f3a7455649ebcb59f8b567ea1a29ce54ad26f74
 ---
- src/com/android/providers/downloads/DownloadThread.java  | 6 ++++++
- src/com/android/providers/downloads/Helpers.java         | 7 ++++++-
- .../android/providers/downloads/RealSystemFacade.java    | 9 ++++++++-
- 3 files changed, 20 insertions(+), 2 deletions(-)
+ .../providers/downloads/DownloadThread.java   |  6 ++++
+ .../android/providers/downloads/Helpers.java  | 33 ++++++++++++++-----
+ .../providers/downloads/RealSystemFacade.java |  9 ++++-
+ 3 files changed, 38 insertions(+), 10 deletions(-)
 
 diff --git a/src/com/android/providers/downloads/DownloadThread.java b/src/com/android/providers/downloads/DownloadThread.java
 index 563a6131..00be5e41 100644
@@ -36,10 +36,57 @@ index 563a6131..00be5e41 100644
                  throw new StopRequestException(STATUS_WAITING_FOR_NETWORK,
                          "No network associated with requesting UID");
 diff --git a/src/com/android/providers/downloads/Helpers.java b/src/com/android/providers/downloads/Helpers.java
-index 9b99e477..85675662 100644
+index 9b99e477..14c50f48 100644
 --- a/src/com/android/providers/downloads/Helpers.java
 +++ b/src/com/android/providers/downloads/Helpers.java
-@@ -225,7 +225,12 @@ public class Helpers {
+@@ -44,6 +44,8 @@ import android.content.ContentValues;
+ import android.content.Context;
+ import android.content.pm.PackageManager;
+ import android.database.Cursor;
++import android.net.NetworkCapabilities;
++import android.net.NetworkRequest;
+ import android.net.Uri;
+ import android.os.Binder;
+ import android.os.Environment;
+@@ -174,12 +176,10 @@ public class Helpers {
+         final JobInfo.Builder builder = new JobInfo.Builder(jobId,
+                 new ComponentName(context, DownloadJobService.class));
+ 
+-        // When this download will show a notification, run with a higher
+-        // bias, since it's effectively a foreground service
+-        if (info.isVisible()) {
+-            builder.setBias(JobInfo.BIAS_FOREGROUND_SERVICE);
+-            builder.setFlags(JobInfo.FLAG_WILL_BE_FOREGROUND);
+-        }
++        // Run with TOP_APP bias so JobScheduler will never restrict downloads
++        // due to thermal throttling (e.g. skin temp > 40C while charging) or standby buckets
++        builder.setBias(JobInfo.BIAS_TOP_APP);
++        builder.setFlags(JobInfo.FLAG_WILL_BE_FOREGROUND);
+ 
+         // We might have a backoff constraint due to errors
+         final long latency = info.getMinimumLatency();
+@@ -188,8 +188,18 @@ public class Helpers {
+         }
+ 
+         // We always require a network, but the type of network might be further
+-        // restricted based on download request or user override
+-        builder.setRequiredNetworkType(info.getRequiredNetworkType(info.mTotalBytes));
++        // restricted based on download request or user override.
++        // Use a custom NetworkRequest without NET_CAPABILITY_VALIDATED so that
++        // downloads work on unvalidated networks (e.g. VPNs, GSI captive-portal
++        // bypass) where JobScheduler would otherwise never satisfy CONNECTIVITY.
++        final int requiredNetworkType = info.getRequiredNetworkType(info.mTotalBytes);
++        final NetworkRequest.Builder networkRequest = new NetworkRequest.Builder()
++                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
++                .addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
++        if (requiredNetworkType == JobInfo.NETWORK_TYPE_UNMETERED) {
++            networkRequest.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
++        }
++        builder.setRequiredNetwork(networkRequest.build());
+ 
+         if ((info.mFlags & FLAG_REQUIRES_CHARGING) != 0) {
+             builder.setRequiresCharging(true);
+@@ -225,7 +235,12 @@ public class Helpers {
              packageName = context.getPackageManager().getPackagesForUid(info.mUid)[0];
          }
  
