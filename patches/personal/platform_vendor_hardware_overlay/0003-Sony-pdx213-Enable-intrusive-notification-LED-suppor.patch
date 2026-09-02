@@ -1,0 +1,24 @@
+From 0b5456e5371509f59e68102b0885ddfbfe6c44e0 Mon Sep 17 00:00:00 2001
+From: Ica <icadkren22@gmail.com>
+Date: Wed, 2 Sep 2026 02:54:29 +0000
+Subject: [PATCH] Sony: pdx213: Enable intrusive notification LED support
+
+---
+ Sony/pdx213/res/values/config.xml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Sony/pdx213/res/values/config.xml b/Sony/pdx213/res/values/config.xml
+index 3cfe8ed..11b4c7f 100644
+--- a/Sony/pdx213/res/values/config.xml
++++ b/Sony/pdx213/res/values/config.xml
+@@ -93,4 +93,7 @@
+     <bool name="config_powerDecoupleInteractiveModeFromDisplay">true</bool>
+     <bool name="config_dozeAlwaysOnEnabled">true</bool>
+     <bool name="config_dozeSupportsAodWallpaper">true</bool>
++    <bool name="config_intrusiveNotificationLed">true</bool>
++    <integer name="config_defaultNotificationLedOn">500</integer>
++    <integer name="config_defaultNotificationLedOff">2000</integer>
+ </resources>
+-- 
+2.43.0
+
