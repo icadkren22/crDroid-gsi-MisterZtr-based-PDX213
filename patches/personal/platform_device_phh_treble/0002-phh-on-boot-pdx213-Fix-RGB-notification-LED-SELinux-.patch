@@ -1,35 +1,34 @@
-From a9a415ba45a43aec4c4c147601c6c83120283eaf Mon Sep 17 00:00:00 2001
+From 0c8511f4fee34392703db2ca7e53a986ab8a65ac Mon Sep 17 00:00:00 2001
 From: Ica <icadkren22@gmail.com>
 Date: Wed, 2 Sep 2026 02:21:04 +0000
-Subject: [PATCH] phh-on-boot: pdx213: Fix RGB notification LED SELinux label
- for PM6150L
+Subject: [PATCH] phh-on-boot: pdx213: Fix RGB notification LED permissions for
+ PM6150L
 
 ---
- phh-on-boot.sh | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ phh-on-boot.sh | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
 diff --git a/phh-on-boot.sh b/phh-on-boot.sh
-index 1c7084c..471c45a 100644
+index 1c7084c..307aa52 100644
 --- a/phh-on-boot.sh
 +++ b/phh-on-boot.sh
-@@ -111,6 +111,22 @@ if ! getprop ro.boot.hardware.platform | grep -qE -e '^gs(101|201|301)$' -e '^zu
+@@ -111,6 +111,21 @@ if ! getprop ro.boot.hardware.platform | grep -qE -e '^gs(101|201|301)$' -e '^zu
      sleep 10
  fi
  
-+# Sony PM6150L (Xperia 10 III / pdx213 / XQ-BT*) - Fix RGB notification LED SELinux label.
-+# The PM6150L RGB composite sysfs node (/sys/class/leds/rgb) gets the
-+# generic 'sysfs' label at boot because the vendor file_contexts regex
-+# uses 'qcom,pmi[0-9]+' which doesn't match 'qcom,pm6150l'. The
-+# illumination_service is only allowed to access 'vendor_sysfs_graphics',
-+# so writing to sync_state fails with Permission denied, breaking all
-+# notification LED blinking. We relabel the node and restart the service.
++# Sony PM6150L (Xperia 10 III / pdx213 / XQ-BT*) - Fix RGB notification LED node permissions.
++# The kernel creates sync_state and start_blink owned by root:root with mode 0220 (--w--w----).
++# illumination_service runs as user 'system' (UID 1000) and fails with EACCES unless
++# ownership is system:system and permissions are 0660. We do not modify SELinux labels
++# to prevent interfering with Qualcomm's vibrator HAL scanning.
 +rgb_path="/sys/devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-05/c440000.qcom,spmi:qcom,pm6150l@5:qcom,leds@d000/leds/rgb"
 +if [ -d "$rgb_path" ]; then
-+    chcon -R u:object_r:vendor_sysfs_graphics:s0 "$rgb_path"
++    chmod 0660 "$rgb_path"/sync_state "$rgb_path"/start_blink "$rgb_path"/brightness 2>/dev/null || true
++    chown system:system "$rgb_path"/sync_state "$rgb_path"/start_blink "$rgb_path"/brightness 2>/dev/null || true
 +    setprop ctl.restart illumination
 +    sleep 0.5
 +    setprop ctl.restart vendor.light-qti
-+    log -t phh-on-boot "Sony PM6150L: Relabeled rgb LED node and restarted illumination_service + light-qti"
++    log -t phh-on-boot "Sony PM6150L: Fixed rgb LED permissions and restarted illumination_service + light-qti"
 +fi
 +
  minijailSrc=/system/system_ext/apex/com.android.vndk.v28/lib/libminijail.so
