@@ -1,7 +1,7 @@
 From 4e0b353dffc192f2ae63caae3b400d03abf01597 Mon Sep 17 00:00:00 2001
 From: Ica <icadkren22@gmail.com>
 Date: Wed, 2 Sep 2026 05:08:59 +0000
-Subject: [PATCH] NotificationRecord: Always return default Light for
+Subject: [PATCH 5/5] NotificationRecord: Always return default Light for
  LineageNotificationLights
 
 Instead of returning null when a channel has shouldShowLights() == false,

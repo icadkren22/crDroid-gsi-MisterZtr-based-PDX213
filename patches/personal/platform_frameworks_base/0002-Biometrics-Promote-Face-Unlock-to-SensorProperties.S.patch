@@ -1,7 +1,7 @@
 From 7c3391f89d6760236e639ba90424bf1cf9f3c916 Mon Sep 17 00:00:00 2001
 From: Builder <builder@localhost>
 Date: Tue, 1 Sep 2026 10:12:29 +0000
-Subject: [PATCH 2/4] Biometrics: Promote Face Unlock to
+Subject: [PATCH 2/5] Biometrics: Promote Face Unlock to
  SensorProperties.STRENGTH_STRONG (Class 3)
 
 ---
