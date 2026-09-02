@@ -1,0 +1,78 @@
+From 4b626fd8c6c8a36fc8d25c59782de8a4600b23d8 Mon Sep 17 00:00:00 2001
+From: Ica <icadkren22@gmail.com>
+Date: Wed, 2 Sep 2026 13:00:46 +0000
+Subject: [PATCH] DownloadProvider: Fallback to getActiveNetwork to fix stuck
+ Queued downloads
+
+When JobParameters.getNetwork() returns null, DownloadThread throws
+StopRequestException(STATUS_WAITING_FOR_NETWORK) and reschedules in an
+endless loop, leaving downloads stuck in 'Queued' state forever.
+
+Fall back to ConnectivityManager.getActiveNetwork() and catch
+scheduleAsPackage failures to ensure downloads start immediately.
+
+Change-Id: I9f3a7455649ebcb59f8b567ea1a29ce54ad26f74
+---
+ src/com/android/providers/downloads/DownloadThread.java  | 6 ++++++
+ src/com/android/providers/downloads/Helpers.java         | 7 ++++++-
+ .../android/providers/downloads/RealSystemFacade.java    | 9 ++++++++-
+ 3 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/com/android/providers/downloads/DownloadThread.java b/src/com/android/providers/downloads/DownloadThread.java
+index 563a6131..00be5e41 100644
+--- a/src/com/android/providers/downloads/DownloadThread.java
++++ b/src/com/android/providers/downloads/DownloadThread.java
+@@ -303,6 +303,12 @@ public class DownloadThread extends Thread {
+             // they might be subject to restrictions that we shouldn't let them
+             // circumvent
+             mNetwork = mSystemFacade.getNetwork(mParams);
++            if (mNetwork == null) {
++                final android.net.ConnectivityManager cm = mContext.getSystemService(android.net.ConnectivityManager.class);
++                if (cm != null) {
++                    mNetwork = cm.getActiveNetwork();
++                }
++            }
+             if (mNetwork == null) {
+                 throw new StopRequestException(STATUS_WAITING_FOR_NETWORK,
+                         "No network associated with requesting UID");
+diff --git a/src/com/android/providers/downloads/Helpers.java b/src/com/android/providers/downloads/Helpers.java
+index 9b99e477..85675662 100644
+--- a/src/com/android/providers/downloads/Helpers.java
++++ b/src/com/android/providers/downloads/Helpers.java
+@@ -225,7 +225,12 @@ public class Helpers {
+             packageName = context.getPackageManager().getPackagesForUid(info.mUid)[0];
+         }
+ 
+-        scheduler.scheduleAsPackage(builder.build(), packageName, UserHandle.myUserId(), TAG);
++        try {
++            scheduler.scheduleAsPackage(builder.build(), packageName, UserHandle.myUserId(), TAG);
++        } catch (Exception e) {
++            Log.w(TAG, "Failed to scheduleAsPackage for " + packageName + ", falling back to direct schedule", e);
++            scheduler.schedule(builder.build());
++        }
+         return true;
+     }
+ 
+diff --git a/src/com/android/providers/downloads/RealSystemFacade.java b/src/com/android/providers/downloads/RealSystemFacade.java
+index 657d9668..43205f0a 100644
+--- a/src/com/android/providers/downloads/RealSystemFacade.java
++++ b/src/com/android/providers/downloads/RealSystemFacade.java
+@@ -54,7 +54,14 @@ class RealSystemFacade implements SystemFacade {
+ 
+     @Override
+     public Network getNetwork(JobParameters params) {
+-        return params.getNetwork();
++        Network network = (params != null) ? params.getNetwork() : null;
++        if (network == null) {
++            final ConnectivityManager cm = mContext.getSystemService(ConnectivityManager.class);
++            if (cm != null) {
++                network = cm.getActiveNetwork();
++            }
++        }
++        return network;
+     }
+ 
+     @Override
+-- 
+2.43.0
+
