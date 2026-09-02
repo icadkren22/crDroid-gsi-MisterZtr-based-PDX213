@@ -1,7 +1,7 @@
-From ed12bd4fa4af35bee63596b7cb85e4dc09180a38 Mon Sep 17 00:00:00 2001
+From c13b8e9a69121f39a20310bead8cc620dc7ba968 Mon Sep 17 00:00:00 2001
 From: Evelyn <evelynt@lineageos.org>
 Date: Sat, 20 Jun 2026 02:34:10 -0230
-Subject: [PATCH] Add overlay for Insulet OmniPod 5 PDM
+Subject: [PATCH 1/3] Add overlay for Insulet OmniPod 5 PDM
 
 ---
  Insulet/OmniPod5PDM/Android.mk                |  8 ++
@@ -207,5 +207,5 @@ index 0000000..286f1e7
 +</device>
 \ No newline at end of file
 -- 
-2.53.0
+2.43.0
 

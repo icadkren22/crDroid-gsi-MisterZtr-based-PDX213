@@ -1,7 +1,7 @@
 From 0b5456e5371509f59e68102b0885ddfbfe6c44e0 Mon Sep 17 00:00:00 2001
 From: Ica <icadkren22@gmail.com>
 Date: Wed, 2 Sep 2026 02:54:29 +0000
-Subject: [PATCH] Sony: pdx213: Enable intrusive notification LED support
+Subject: [PATCH 3/3] Sony: pdx213: Enable intrusive notification LED support
 
 ---
  Sony/pdx213/res/values/config.xml | 3 +++
