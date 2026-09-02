@@ -1,7 +1,7 @@
 From c6b1aec4ffa6d3169283862ac5c5f9156c217987 Mon Sep 17 00:00:00 2001
 From: Builder <builder@localhost>
 Date: Mon, 31 Aug 2026 14:43:03 +0000
-Subject: [PATCH] Tethering: advertise 1.1.1.1, 1.0.0.1, 8.8.8.8 and enable
+Subject: [PATCH 9/9] Tethering: advertise 1.1.1.1, 1.0.0.1, 8.8.8.8 and enable
  legacy DNS proxy
 
 ---
