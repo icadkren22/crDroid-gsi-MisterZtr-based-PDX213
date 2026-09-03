@@ -126,6 +126,11 @@ This fork includes dedicated patches in `patches/personal/` addressing critical 
 * **Universal App Notification LED Pulse (`frameworks/base`):** Updates `NotificationRecord.java` to always generate default `Light` parameters so `LineageNotificationLights` can auto-calculate per-app LED colors and pulse for modern apps that omit legacy `FLAG_SHOW_LIGHTS`.
 * **Device Hardware Overlay (`vendor/hardware_overlay`):** Configures `config_intrusiveNotificationLed = true` with 500ms ON / 2000ms OFF timings in Sony `pdx213` overlay.
 
+### 4.5 DownloadProvider & JobScheduler Fixes (Queued Downloads & Thermal Throttling)
+* **Active Network Fallback (`RealSystemFacade` & `DownloadThread`):** When `JobParameters.getNetwork()` returns null (e.g. during quick network transitions or expedited jobs), automatically falls back to `ConnectivityManager.getActiveNetwork()` to prevent `StopRequestException(STATUS_WAITING_FOR_NETWORK)` endless reschedule loops.
+* **Network Constraint Relaxation (`Helpers.java`):** Replaces strict `setRequiredNetworkType()` with a custom `NetworkRequest` omitting `NET_CAPABILITY_VALIDATED`. Allows downloads to proceed through unvalidated networks, VPNs (e.g., Nebula), or GSI networks failing captive-portal checks where `CONNECTIVITY` constraint was permanently unsatisfied.
+* **Thermal Throttling & Standby Exemption (`Helpers.java`):** Applies `builder.setBias(JobInfo.BIAS_TOP_APP)` and `FLAG_WILL_BE_FOREGROUND` to all download jobs. Prevents Android 16 JobScheduler from freezing downloads under `Restricted due to: thermal` when devices heat up while charging (such as Xperia 10 III's 40°C skin throttle threshold).
+
 ---
 
 ## 5. crDroid features / overlays, translations and forum template
