@@ -114,11 +114,12 @@ This fork includes dedicated patches in `patches/personal/` addressing critical 
 * Bundled with clean FOSS microG (`GmsCore`, `GsfProxy`, `FakeStore`, `FDroid`, `FDroidPrivilegedExtension`).
 * **Optional Google Play Store:** Set `export WITH_CUSTOM_PLAYSTORE=true` and place `PlayStore.apk` into `vendor/microg/FakeStore/` to bundle your own modified Play Store package. Defaults to FOSS `FakeStore.apk`.
 
-### 4.3 Networking, Performance & System UI
+### 4.3 Display, Animations, UI & Networking
+* **Always-on Display (AoD) & Wallpaper Support (Sony Xperia 10 III / PDX213):** Enabled `config_dozeAlwaysOnDisplayAvailable`, `config_dozeAlwaysOnEnabled`, and `config_dozeSupportsAodWallpaper` in `vendor/hardware_overlay/Sony/pdx213`, providing Always-on Display with lockscreen wallpaper out of the box on the OLED panel.
+* **Custom Activity Animations (`AnimationUtils.java`):** Fixed crDroid's `CustomActivityAnimations` to properly pass and initialize `Context` across `getOpenEnter()`, `getOpenExit()`, `getCloseEnter()`, and `getCloseExit()` builders, preventing crashes and animation glitching when launching or closing apps.
+* **SurfaceFlinger Blur Toggle:** Reads `persist.sys.phh.sf.background_blur` to enable/disable blurs dynamically without rebooting.
 * **Hotspot Tethering DNS:** Configured Tethering to automatically advertise `1.1.1.1`, `1.0.0.1`, and `8.8.8.8` upstream DNS servers with legacy DNS proxy fallback.
 * **5G NR Network Settings:** Added 5G Preferred Network Type and NR repository support in Settings UI.
-* **SurfaceFlinger Blur Toggle:** Reads `persist.sys.phh.sf.background_blur` to enable/disable blurs dynamically.
-* **AnimationUtils:** Fixed custom activity transition animation initialization crashes.
 
 ### 4.4 RGB Notification LED & Battery Charging Light (Sony Xperia 10 III / PDX213 & Generic GSI)
 * **PM6150L Sysfs Node Permissions (`phh-on-boot.sh`):** Fixes `sync_state`, `start_blink`, and `brightness` node ownership to `system:system` (mode `0660`) at boot. Uses path-based detection (`/sys/devices/platform/soc/.../pm6150l.../leds/rgb`) without modifying SELinux labels, preserving Qualcomm vibrator HAL (`vendor.qti.vibrator`) directory scanning.
